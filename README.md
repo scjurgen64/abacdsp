@@ -1,14 +1,37 @@
 # AbacDsp
 Dsp code for abacad projects
 
-## Concept
+## Goals
 
-To make the most compact dsp code most stuff is done with templates.
+Have handy classes for various DSP tasks.
+No dependencies for the dsp code it self (examples and unit-test have submodules based code)
 
-Furthermore, it uses a lot of float calculations instead of double as this is 
-usually sufficient for good quality dsp code.
+### Submodules used
+- googletest
+- Audiofile
+- juce (8)
+
+### class design
+
+- float must suffice
+- mostly templates based for adaptive code and better optimisations.
+- classes should ctor with the samplerate
+- blockoperations of BlockSize=8 Samples for better compiler optimisations
+- operations on simple buffer design with interleaved or mono array
+- raw float operations allowed but with BlockSize only
+- testability
+
+## What
+- Analysis
+- Generic Audio
+- Filters
+- Generators (from Naive to more sophisticated band limited version)
+- Parameter Smoothing
+- Conversions
+
+
 
 ### Usage
 
-For usage check always the unit-tests, they contain implementation examples 
-which should be  self-explanatory.
+For usage check always the unit-tests or examples, these contain implementations that should cover and 
+which should be self-explanatory.
