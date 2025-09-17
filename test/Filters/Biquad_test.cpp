@@ -46,22 +46,24 @@ class TestBiquadFilterSet
     double gain;
 };
 
-static std::array<TestBiquadFilterSet, 9> filterTestSet{{{AbacDsp::BiquadFilterType::LowPass, 0.0},
-                                                         {AbacDsp::BiquadFilterType::HighPass, 0.0},
-                                                         {AbacDsp::BiquadFilterType::BandPass, 0.0},
-                                                         {AbacDsp::BiquadFilterType::Peak, 6.0},
-                                                         {AbacDsp::BiquadFilterType::Peak, -6.0},
-                                                         {AbacDsp::BiquadFilterType::LoShelf, 6.0},
-                                                         {AbacDsp::BiquadFilterType::LoShelf, -6.0},
-                                                         {AbacDsp::BiquadFilterType::HiShelf, 6.0},
-                                                         {AbacDsp::BiquadFilterType::HiShelf, -6.0}}};
+static std::array<TestBiquadFilterSet, 10> filterTestSet{{
+    {AbacDsp::BiquadFilterType::LowPass, 0.0},
+    {AbacDsp::BiquadFilterType::HighPass, 0.0},
+    {AbacDsp::BiquadFilterType::BandPass, 0.0},
+    {AbacDsp::BiquadFilterType::Peak, 6.0},
+    {AbacDsp::BiquadFilterType::Peak, -6.0},
+    {AbacDsp::BiquadFilterType::LoShelf, 6.0},
+    {AbacDsp::BiquadFilterType::LoShelf, -6.0},
+    {AbacDsp::BiquadFilterType::HiShelf, 6.0},
+    {AbacDsp::BiquadFilterType::HiShelf, -6.0},
+    {AbacDsp::BiquadFilterType::AllPass, 0.0},
+}};
 
 using FilterCutOffFrequency = double;
 using TestFrequency = double;
 using TestQFactor = double;
 
-class DspBiquadFilterTests
-    : public testing::TestWithParam<std::tuple<TestBiquadFilterSet, TestQFactor, FilterCutOffFrequency, TestFrequency>>
+class DspBiquadFilterTests : public testing::TestWithParam<TestBiquadFilterSet>
 {
   public:
 };
@@ -102,6 +104,10 @@ class WrapperOfSpecializedBiquads
             case AbacDsp::BiquadFilterType::HiShelf:
                 hs.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
+            case AbacDsp::BiquadFilterType::AllPass:
+                ap.computeCoefficients(sampleRate, frequency, Q, peakGain);
+                break;
+
             default:
                 break;
         }
@@ -132,6 +138,9 @@ class WrapperOfSpecializedBiquads
             case AbacDsp::BiquadFilterType::HiShelf:
                 hs.processBlock(in, outBuffer, numSamples);
                 break;
+            case AbacDsp::BiquadFilterType::AllPass:
+                ap.processBlock(in, outBuffer, numSamples);
+                break;
             default:
                 break;
         }
@@ -156,6 +165,8 @@ class WrapperOfSpecializedBiquads
                 return ls.magnitudeInDb(ratio);
             case AbacDsp::BiquadFilterType::HiShelf:
                 return hs.magnitudeInDb(ratio);
+            case AbacDsp::BiquadFilterType::AllPass:
+                return ap.magnitudeInDb(ratio);
             default:
                 return 0;
         }
@@ -170,38 +181,49 @@ class WrapperOfSpecializedBiquads
     AbacDsp::Biquad<AbacDsp::BiquadFilterType::Peak> peak;
     AbacDsp::Biquad<AbacDsp::BiquadFilterType::LoShelf> ls;
     AbacDsp::Biquad<AbacDsp::BiquadFilterType::HiShelf> hs;
+    AbacDsp::Biquad<AbacDsp::BiquadFilterType::AllPass> ap;
 };
 
 TEST_P(DspBiquadFilterTests, allMagnitudesMono)
 {
-    const auto ts(std::get<0>(GetParam()));
-    const auto qFactor = std::get<1>(GetParam());
-    const auto cf = std::get<2>(GetParam());
-    const auto hz = std::get<3>(GetParam());
-    WrapperOfSpecializedBiquads sut;
+    const auto ts = GetParam();
+    std::vector<float> qvalues{StandardQValue, StrongQvalue, WeakQValue};
+    std::vector<float> cfValues{125.f, 2000.f};
+    std::vector<float> hzValues{25.f, 200.f, 800.f, 6400.f};
 
-    constexpr auto sampleRate{48000.0};
-
-    sut.computeCoefficients(ts.type, sampleRate, cf, qFactor, ts.gain);
-
-    std::vector<float> wave{};
-    if (qFactor > 0.8)
+    for (auto qFactor : qvalues)
     {
-        wave.resize(48000); // strong q needs more time to settle due to resonance
-    }
-    else
-    {
-        wave.resize(5000);
-    }
-    renderWithSineWave(wave, sampleRate, hz);
-    sut.processBlock(wave.data(), wave.data(), wave.size());
-    const auto [minV, maxV] = std::minmax_element(wave.begin() + wave.size() / 2, wave.end());
-    const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
+        for (auto cf : cfValues)
+        {
+            for (auto hz : hzValues)
+            {
+                WrapperOfSpecializedBiquads sut;
 
-    const auto db = std::log10(maxValue) * 20.0f;
+                constexpr auto sampleRate{48000.0};
 
-    const auto expectedDb = sut.magnitudeInDb(hz);
-    EXPECT_NEAR(db, expectedDb, maxDeltaDb);
+                sut.computeCoefficients(ts.type, sampleRate, cf, qFactor, ts.gain);
+
+                std::vector<float> wave{};
+                if (qFactor > 0.8)
+                {
+                    wave.resize(48000); // strong q needs more time to settle due to resonance
+                }
+                else
+                {
+                    wave.resize(5000);
+                }
+                renderWithSineWave(wave, sampleRate, hz);
+                sut.processBlock(wave.data(), wave.data(), wave.size());
+                const auto [minV, maxV] = std::minmax_element(wave.begin() + wave.size() / 2, wave.end());
+                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
+
+                const auto db = std::log10(maxValue) * 20.0f;
+
+                const auto expectedDb = sut.magnitudeInDb(hz);
+                EXPECT_NEAR(db, expectedDb, maxDeltaDb);
+            }
+        }
+    }
 }
 
 
@@ -238,6 +260,9 @@ class WrapperOfSpecializedBiquadsStereo
             case AbacDsp::BiquadFilterType::HiShelf:
                 hs.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
+            case AbacDsp::BiquadFilterType::AllPass:
+                ap.computeCoefficients(sampleRate, frequency, Q, peakGain);
+                break;
             default:
                 break;
         }
@@ -268,6 +293,9 @@ class WrapperOfSpecializedBiquadsStereo
             case AbacDsp::BiquadFilterType::HiShelf:
                 hs.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
+            case AbacDsp::BiquadFilterType::AllPass:
+                ap.processBlock(left, right, outLeft, outRight, numSamples);
+                break;
             default:
                 break;
         }
@@ -292,6 +320,8 @@ class WrapperOfSpecializedBiquadsStereo
                 return ls.magnitudeInDb(ratio);
             case AbacDsp::BiquadFilterType::HiShelf:
                 return hs.magnitudeInDb(ratio);
+            case AbacDsp::BiquadFilterType::AllPass:
+                return ap.magnitudeInDb(ratio);
             default:
                 return 0;
         }
@@ -307,139 +337,52 @@ class WrapperOfSpecializedBiquadsStereo
     AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::Peak> peak;
     AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::LoShelf> ls;
     AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::HiShelf> hs;
+    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::AllPass> ap;
 };
 
 TEST_P(DspBiquadFilterTests, allMagnitudesStereo)
 {
-    const auto ts(std::get<0>(GetParam()));
-    const auto qFactor = std::get<1>(GetParam());
-    const auto cf = std::get<2>(GetParam());
-    const auto hz = std::get<3>(GetParam());
-    WrapperOfSpecializedBiquadsStereo sut;
+    std::vector<float> qvalues{StandardQValue, StrongQvalue, WeakQValue};
+    std::vector<float> cfValues{125.f, 2000.f};
+    std::vector<float> hzValues{25.f, 200.f, 800.f, 6400.f};
 
-    constexpr auto sampleRate{48000.0};
-
-    sut.computeCoefficients(ts.type, sampleRate, cf, qFactor, ts.gain);
-
-    std::vector<float> wave{};
-    std::vector<float> left{};
-    std::vector<float> right{};
-
-    wave.resize(qFactor > 0.8 ? 48000 : 5000);  // strong q needs more time to settle due to resonance
-    left.resize(qFactor > 0.8 ? 48000 : 5000);  // strong q needs more time to settle due to resonance
-    right.resize(qFactor > 0.8 ? 48000 : 5000); // strong q needs more time to settle due to resonance
-
-    renderWithSineWave(wave, sampleRate, hz);
-    sut.processBlock(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-
-
-    const auto expectedDb = sut.magnitudeInDb(hz);
+    const auto ts = GetParam();
+    for (auto qFactor : qvalues)
     {
-        const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-        const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-        const auto db = std::log10(maxValue) * 20.0f;
-        EXPECT_NEAR(db, expectedDb, maxDeltaDb) << "left channel failure";
-    }
-    {
-        const auto [minV, maxV] = std::minmax_element(right.begin() + right.size() / 2, right.end());
-        const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-        const auto db = std::log10(maxValue) * 20.0f;
-        EXPECT_NEAR(db, expectedDb, maxDeltaDb) << "right channel failure";
-    }
-}
-
-
-INSTANTIATE_TEST_SUITE_P(DspBiquadMagnitudeTest, DspBiquadFilterTests,
-                         ::testing::Combine(testing::ValuesIn(filterTestSet),
-                                            testing::Values(StandardQValue, StrongQvalue, WeakQValue),
-                                            testing::Values(125.f, 2000.f),
-                                            testing::Values(25.f, 200.f, 800.f, 6400.f)));
-
-
-TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassMono)
-{
-    constexpr auto sampleRate{48000.0f};
-
-    AbacDsp::ChebyshevBiquad sut(sampleRate);
-
-    for (size_t order = 1; order < 10; ++order)
-    {
-        sut.computeType1(order, 1000, 6, true);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> out(48000, 0);
-        renderWithSineWave(wave, sampleRate, 2000.f);
-        sut.processBlock(wave.data(), out.data(), wave.size());
+        for (auto cf : cfValues)
         {
-            float expectedDb = sut.getMagnitudeInDb(2000.f);
-            const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-        for (float hz = 125.f / 4.f; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlock(wave.data(), out.data(), wave.size());
+            for (auto hz : hzValues)
             {
-                float expectedDb = sut.getMagnitudeInDb(hz);
+                WrapperOfSpecializedBiquadsStereo sut;
 
-                const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -80)
-                {
-                    EXPECT_LT(db, -80);
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order:" << order;
-                }
-                if (hz < 800)
-                {
-                    EXPECT_GT(db, -6.5); // stay inside ripple
-                    EXPECT_LT(db, 0);
-                }
-            }
-        }
-    }
-}
+                constexpr auto sampleRate{48000.0};
 
-TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassMono)
-{
-    for (size_t order = 1; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
-        sut.computeType1(order, 1000.f, 6, false);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> out(48000, 0);
-        renderWithSineWave(wave, sampleRate, 500.f);
-        sut.processBlock(wave.data(), out.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(500.f);
-            const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-        for (float hz = 100; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlock(wave.data(), out.data(), wave.size());
-            {
-                float expectedDb = sut.getMagnitudeInDb(hz);
+                sut.computeCoefficients(ts.type, sampleRate, cf, qFactor, ts.gain);
 
-                const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -80)
+                std::vector<float> wave{};
+                std::vector<float> left{};
+                std::vector<float> right{};
+
+                wave.resize(qFactor > 0.8 ? 48000 : 5000);  // strong q needs more time to settle due to resonance
+                left.resize(qFactor > 0.8 ? 48000 : 5000);  // strong q needs more time to settle due to resonance
+                right.resize(qFactor > 0.8 ? 48000 : 5000); // strong q needs more time to settle due to resonance
+
+                renderWithSineWave(wave, sampleRate, hz);
+                sut.processBlock(wave.data(), wave.data(), left.data(), right.data(), wave.size());
+
+
+                const auto expectedDb = sut.magnitudeInDb(hz);
                 {
-                    EXPECT_LT(db, -80);
+                    const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
+                    const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
+                    const auto db = std::log10(maxValue) * 20.0f;
+                    EXPECT_NEAR(db, expectedDb, maxDeltaDb) << "left channel failure";
                 }
-                else
                 {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
+                    const auto [minV, maxV] = std::minmax_element(right.begin() + right.size() / 2, right.end());
+                    const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
+                    const auto db = std::log10(maxValue) * 20.0f;
+                    EXPECT_NEAR(db, expectedDb, maxDeltaDb) << "right channel failure";
                 }
             }
         }
@@ -447,290 +390,7 @@ TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassMono)
 }
 
 
-TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassMono)
-{
-    for (size_t order = 8; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut(sampleRate);
-        sut.computeType2(order, 1000, 3, true);
-
-        std::vector<float> wave(48000, 0);
-        std::vector<float> out(48000, 0);
-
-        renderWithSineWave(wave, sampleRate, 2000.f);
-        sut.processBlock(wave.data(), out.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(2000.f);
-            const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-
-        for (float hz = 10; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlock(wave.data(), out.data(), wave.size());
-            {
-                float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -78)
-                {
-                    EXPECT_LT(db, -72); // allow 6dB noise floor
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
-                }
-            }
-        }
-    }
-}
-
-TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassMono)
-{
-    for (size_t order = 8; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
-        sut.computeType2(order, 1000, 3, false);
-
-
-        std::vector<float> wave(48000, 0);
-        std::vector<float> out(48000, 0);
-        renderWithSineWave(wave, sampleRate, 500.f);
-        sut.processBlock(wave.data(), out.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(500.f);
-            const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-
-        for (float hz = 10; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlock(wave.data(), out.data(), wave.size());
-            {
-                const float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(out.begin() + out.size() / 2, out.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -78)
-                {
-                    EXPECT_LT(db, -72); // allow 6dB noise floor
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
-                }
-            }
-        }
-    }
-}
-
-
-TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassStereo)
-{
-    constexpr auto sampleRate{48000.0f};
-
-    AbacDsp::ChebyshevBiquad sut;
-    sut.setSampleRate(sampleRate);
-
-    for (size_t order = 1; order < 10; ++order)
-    {
-        sut.computeType1(order, 1000, 6, true);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> left(48000, 0);
-        std::vector<float> right(48000, 0);
-        renderWithSineWave(wave, sampleRate, 2000.f);
-        sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(2000.f);
-            const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-        for (float hz = 125.f / 4.f; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-            {
-                float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -80)
-                {
-                    EXPECT_LT(db, -80);
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz;
-                }
-                if (hz < 800)
-                {
-                    EXPECT_GT(db, -6.5); // stay inside ripple
-                    EXPECT_LT(db, 0);
-                }
-            }
-        }
-    }
-}
-
-
-TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassStereo)
-{
-    for (size_t order = 1; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
-        sut.computeType1(order, 1000.f, 6, false);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> left(48000, 0);
-        std::vector<float> right(48000, 0);
-        renderWithSineWave(wave, sampleRate, 500.f);
-        sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(500.f);
-            const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-        for (float hz = 100; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-            {
-                float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -80) // ignore noise floor
-                {
-                    EXPECT_LT(db, -80);
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
-                }
-            }
-        }
-    }
-}
-
-TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassStereo)
-{
-    for (size_t order = 8; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
-        sut.computeType2(order, 1000, 3, true);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> left(48000, 0);
-        std::vector<float> right(48000, 0);
-        renderWithSineWave(wave, sampleRate, 2000.f);
-        sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(2000.f);
-            const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-
-        for (float hz = 10; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-            {
-                const float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -78)
-                {
-                    EXPECT_LT(db, -72); // allow 6dB noise floor
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
-                }
-            }
-        }
-    }
-}
-
-
-TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassStereo)
-{
-    for (size_t order = 8; order < 10; ++order)
-    {
-        constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
-        sut.computeType2(order, 1000, 3, false);
-        std::vector<float> wave(48000, 0);
-        std::vector<float> left(48000, 0);
-        std::vector<float> right(48000, 0);
-        renderWithSineWave(wave, sampleRate, 500.f);
-        sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-        {
-            float expectedDb = sut.getMagnitudeInDb(500.f);
-            const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-            const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-            const auto db = std::log10(maxValue) * 20.0f;
-            EXPECT_LT(db, -10 * order);
-        }
-
-        for (float hz = 10; hz < 20000; hz *= 2)
-        {
-            renderWithSineWave(wave, sampleRate, hz);
-            sut.processBlockStereo(wave.data(), wave.data(), left.data(), right.data(), wave.size());
-            {
-                float expectedDb = sut.getMagnitudeInDb(hz);
-
-                const auto [minV, maxV] = std::minmax_element(left.begin() + left.size() / 2, left.end());
-                const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
-                const auto db = std::log10(maxValue) * 20.0f;
-                if (expectedDb < -78)
-                {
-                    EXPECT_LT(db, -72); // allow 6dB noise floor
-                }
-                else
-                {
-                    EXPECT_NEAR(db, expectedDb, 2.0f) << "left channel failure @" << hz << " order: " << order;
-                }
-            }
-        }
-    }
-}
-
-/*
- * // fc=1000 ripple=3 high pass
-std::array<std::array<float,5>, 5> coefficients={{
-}}
-// fc=1000 ripple=3 low pass
-std::array<std::array<float,5>, 5> coefficients={{
-}}
-// fc=1000 ripple=3 high pass
-std::array<std::array<float,5>, 5> coefficients={{
-}}
- */
+INSTANTIATE_TEST_SUITE_P(DspBiquadMagnitudeTest, DspBiquadFilterTests, testing::ValuesIn(filterTestSet));
 
 TEST(DspBiquadFilterTest, checkCoefficientsType1LowPass)
 {
@@ -742,7 +402,7 @@ TEST(DspBiquadFilterTest, checkCoefficientsType1LowPass)
         {0.00090879137860611f, 0.0018175827572122f, 0.00090879137860611f, -1.9759397506714f, 0.97957491874695f},
         {0.00013712796499021f, 0.00027425592998043f, 0.00013712796499021f, -1.9768172502518f, 0.97736573219299f},
     }};
-    AbacDsp::ChebyshevBiquad sut;
+    AbacDsp::ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, true);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
@@ -766,7 +426,7 @@ TEST(DspBiquadFilterTest, checkCoefficientsType1HighPass)
         {0.93601679801941f, -1.8720335960388f, 0.93601679801941f, -1.8344408273697f, 0.90962678194046f},
         {0.67223185300827f, -1.3444637060165f, 0.67223185300827f, -1.1655949354172f, 0.52333217859268f},
     }};
-    AbacDsp::ChebyshevBiquad sut;
+    AbacDsp::ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, false);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
@@ -790,7 +450,7 @@ TEST(DspBiquadFilterTest, checkCoefficientsType2LowPass)
         {0.92060536146164f, -1.7660242319107f, 0.92060530185699f, -1.8344397544861f, 0.90962624549866f},
         {0.59890443086624f, -0.84006577730179f, 0.59890443086624f, -1.1655919551849f, 0.52333503961563f},
     }};
-    AbacDsp::ChebyshevBiquad sut;
+    AbacDsp::ChebyshevBiquad sut(48000.f);
     sut.computeType2(10, 1000, 3, true);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
@@ -814,7 +474,7 @@ TEST(DspBiquadFilterTest, checkCoefficientsType2HighPass)
         {0.98975425958633f, -1.9760061502457f, 0.98975425958633f, -1.9759398698807f, 0.97957497835159f},
         {0.98864996433258f, -1.9768840074539f, 0.98864978551865f, -1.9768177270889f, 0.97736620903015f},
     }};
-    AbacDsp::ChebyshevBiquad sut;
+    AbacDsp::ChebyshevBiquad sut(48000.f);
     sut.computeType2(10, 1000, 3, false);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
@@ -828,9 +488,10 @@ TEST(DspBiquadFilterTest, checkCoefficientsType2HighPass)
     }
 }
 
-TEST(DISABLED_DspBiquadFilterTest, coefficientTables)
+TEST(DspBiquadFilterTest, coefficientTables)
 {
-    AbacDsp::ChebyshevBiquad sut;
+    GTEST_SKIP();
+    AbacDsp::ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, true);
     sut.printCoefficients();
     sut.computeType1(10, 1000, 3, false);
@@ -839,4 +500,178 @@ TEST(DISABLED_DspBiquadFilterTest, coefficientTables)
     sut.printCoefficients();
     sut.computeType2(10, 1000, 3, false);
     sut.printCoefficients();
+}
+
+
+/*********** Chebyshev Filters **************/
+
+namespace ChebyshevTestHelpers
+{
+constexpr auto kSampleRate = 48000.0f;
+constexpr auto kBufferSize = 48000;
+constexpr auto kRipple = 6.0f;
+constexpr auto kFrequencyTolerance = 2.0f;
+constexpr auto kNoiseFloorThreshold = -78.0f;
+constexpr auto kNoiseFloorLimit = -72.0f;
+
+struct TestBuffers
+{
+    std::vector<float> wave;
+    std::vector<float> left;
+    std::vector<float> right;
+    std::vector<float> out;
+
+    TestBuffers()
+        : wave(kBufferSize, 0.0f)
+        , left(kBufferSize, 0.0f)
+        , right(kBufferSize, 0.0f)
+        , out(kBufferSize, 0.0f)
+    {
+    }
+};
+
+float calculateDbFromBuffer(const std::vector<float>& buffer)
+{
+    const auto [minV, maxV] = std::minmax_element(buffer.begin() + buffer.size() / 2, buffer.end());
+    const auto maxValue = std::max(std::abs(*minV), std::abs(*maxV));
+    return std::log10(maxValue) * 20.0f;
+}
+
+void testSingleFrequency(AbacDsp::ChebyshevBiquad& sut, TestBuffers& buffers, float frequency, bool isStereo, int order,
+                         bool checkRipple = false)
+{
+    renderWithSineWave(buffers.wave, kSampleRate, frequency);
+
+    const std::vector<float>* targetBuffer;
+
+    if (isStereo)
+    {
+        sut.processBlockStereo(buffers.wave.data(), buffers.wave.data(), buffers.left.data(), buffers.right.data(),
+                               buffers.wave.size());
+        targetBuffer = &buffers.left;
+    }
+    else
+    {
+        sut.processBlock(buffers.wave.data(), buffers.out.data(), buffers.wave.size());
+        targetBuffer = &buffers.out;
+    }
+
+    const float expectedDb = sut.getMagnitudeInDb(frequency);
+    const float db = calculateDbFromBuffer(*targetBuffer);
+
+    if (expectedDb < kNoiseFloorThreshold)
+    {
+        EXPECT_LT(db, kNoiseFloorLimit) << "left channel failure @" << frequency << " order:" << order;
+    }
+    else
+    {
+        EXPECT_NEAR(db, expectedDb, kFrequencyTolerance)
+            << "left channel failure @" << frequency << "Hz order:" << order;
+    }
+
+    if (checkRipple && frequency < 800.0f)
+    // check ripple only if in passband, in stopband it is not interesting at all
+    {
+        EXPECT_GT(db, -6.5f);
+        EXPECT_LT(db, 0.0f);
+    }
+}
+
+void testInitialFrequency(AbacDsp::ChebyshevBiquad& sut, TestBuffers& buffers, float testFrequency, bool isStereo)
+{
+    renderWithSineWave(buffers.wave, kSampleRate, testFrequency);
+
+    const std::vector<float>* targetBuffer;
+
+    if (isStereo)
+    {
+        sut.processBlockStereo(buffers.wave.data(), buffers.wave.data(), buffers.left.data(), buffers.right.data(),
+                               buffers.wave.size());
+        targetBuffer = &buffers.left;
+    }
+    else
+    {
+        sut.processBlock(buffers.wave.data(), buffers.out.data(), buffers.wave.size());
+        targetBuffer = &buffers.out;
+    }
+
+    const float expectedDb = sut.getMagnitudeInDb(testFrequency);
+    const float db = calculateDbFromBuffer(*targetBuffer);
+
+    EXPECT_NEAR(db, expectedDb, 1.0f);
+}
+
+template <typename FilterSetupFunc>
+void runFilterTest(FilterSetupFunc setupFilter, bool isStereo, bool checkRipple, float initialTestFreq)
+{
+    for (int order = 1; order < 10; ++order)
+    {
+        AbacDsp::ChebyshevBiquad sut(kSampleRate);
+        setupFilter(sut, order);
+        TestBuffers buffers;
+
+        testInitialFrequency(sut, buffers, initialTestFreq, isStereo);
+
+        for (float hz = 31.25f; hz < 20000; hz *= 2.0f)
+        {
+            testSingleFrequency(sut, buffers, hz, isStereo, order, checkRipple);
+        }
+    }
+}
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassMono)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, false,
+                  true, 2000.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassMono)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); },
+                  false, false, 500.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassMono)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, false,
+                  false, 2000.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassMono)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); },
+                  false, false, 500.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassStereo)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, true,
+                  true, 2000.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassStereo)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); }, true,
+                  false, 500.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassStereo)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, true,
+                  false, 2000.0f);
+}
+
+TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassStereo)
+{
+    using namespace ChebyshevTestHelpers;
+    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); }, true,
+                  false, 500.0f);
 }

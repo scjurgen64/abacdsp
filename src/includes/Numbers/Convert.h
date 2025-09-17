@@ -49,4 +49,35 @@ template <std::floating_point T>
     }
     return std::log10(gain) * T(20);
 }
+
+
+template <std::floating_point T>
+static T frequencyToNote(const T f, const T orchestraTuning = 440.f)
+{
+    return std::log(f / orchestraTuning) / std::log(static_cast<T>(2.0)) * static_cast<T>(12) + static_cast<T>(69);
+}
+template <std::floating_point T>
+static T noteToFrequency(const T note, const T orchestraTuning = 440.f)
+{
+    return orchestraTuning * std::exp2((note - static_cast<T>(69)) / static_cast<T>(12));
+}
+
+template <std::floating_point T>
+static T noteIntervalToRatio(const T interval)
+{
+    return std::exp2(interval / static_cast<T>(12));
+}
+
+template <std::floating_point T>
+static T ratioToNoteInterval(const T ratio)
+{
+    return std::log(ratio) / std::log(static_cast<T>(2.0)) * static_cast<T>(12);
+}
+
+template <std::floating_point T>
+static T centsToRelativePitch(T cents)
+{
+    return std::exp2(cents / static_cast<T>(1200));
+}
+
 }

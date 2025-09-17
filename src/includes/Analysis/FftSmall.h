@@ -1,8 +1,13 @@
 #pragma once
 
+#include "Numbers/Convert.h"
+
+
+#include <cassert>
 #include <cmath>
 #include <complex>
 #include <iostream>
+#include <random>
 #include <valarray>
 #include <vector>
 
@@ -83,6 +88,148 @@ class BasicFFT
     }
 };
 
+
+class FFTResponse
+{
+  public:
+    static std::vector<float> generateNoiseSignal(const size_t NumFrames)
+    {
+        std::minstd_rand generator(31);
+        std::uniform_real_distribution<float> dist(-1.f, 1.f);
+        std::vector<float> signal(NumFrames);
+        std::generate(signal.begin(), signal.end(), [&generator, &dist]() { return dist(generator); });
+        return signal;
+    }
+
+    template <size_t interleave, size_t channelOffset>
+    static std::vector<float> analyse(const std::vector<float>& resultBuffer, const size_t windowSize)
+    {
+        const size_t windowAdvance = windowSize / 4;
+        static_assert(interleave > 0);
+        static_assert(channelOffset < interleave);
+        assert(resultBuffer.size() > windowSize * interleave + channelOffset);
+        std::vector<float> vData(windowSize, 0.0f);
+        std::vector<float> magnitude(windowSize, 0.0f);
+        std::vector<float> sumUp(windowSize / 2 - 1, 0.0f); // 1 element less: remove dc
+        for (size_t j = 0; j < resultBuffer.size() - windowSize * interleave - channelOffset;
+             j += windowAdvance * interleave)
+        {
+            for (size_t i = 0; i < vData.size(); ++i)
+            {
+                vData[i] = resultBuffer[j + i * interleave + channelOffset];
+            }
+            BasicFFT::realDataToMagnitude(vData, magnitude);
+            for (size_t i = 0; i < sumUp.size(); ++i)
+            {
+                sumUp[i] += magnitude[i + 1]; // skip dc
+            }
+        }
+        const auto maxit = max_element(sumUp.begin(), sumUp.end());
+        const float normFactor = 1.f / (*maxit);
+        for (float& i : sumUp)
+        {
+            i *= normFactor;
+        }
+        return sumUp;
+    }
+
+
+    struct FrequencySlice
+    {
+        float minValue;
+        float maxValue;
+        std::vector<float> bins;
+        std::vector<float> frequencies;
+    };
+
+    static FrequencySlice processFrequencies(const std::vector<float>& binFrequency, const std::vector<float>& binSum,
+                                             float minValue)
+    {
+        FrequencySlice slice{};
+        auto lastNonZero = std::find_if(binFrequency.rbegin(), binFrequency.rend(), [](float f) { return f != 0.0f; });
+        auto firstGreaterThan =
+            std::find_if(binFrequency.begin(), binFrequency.end(), [minValue](float f) { return f > minValue; });
+        if (lastNonZero != binFrequency.rend() && firstGreaterThan != binFrequency.end())
+        {
+            size_t start = std::distance(binFrequency.begin(), firstGreaterThan);
+            size_t end = binFrequency.size() - std::distance(binFrequency.rbegin(), lastNonZero);
+            if (start < end)
+            {
+                slice.bins = std::vector<float>(binSum.begin() + start, binSum.begin() + end);
+                slice.frequencies = std::vector<float>(binFrequency.begin() + start, binFrequency.begin() + end);
+                auto [min, max] = std::minmax_element(slice.bins.begin(), slice.bins.end());
+                slice.minValue = *min;
+                slice.maxValue = *max;
+            }
+        }
+        return slice;
+    }
+
+    template <size_t interleave, size_t channelOffset>
+    static FrequencySlice analyseByOctaveBins(const std::vector<float>& resultBuffer, const size_t windowSize,
+                                              const float sampleRate, const int binsPerOctave,
+                                              const float startFreq = -1)
+    {
+        auto tmp = analyse<interleave, channelOffset>(resultBuffer, windowSize);
+        auto numBins = static_cast<unsigned>(std::ceil(std::log(sampleRate) / std::log(2.f) * binsPerOctave));
+        std::vector<float> binSum(numBins, 0);
+        std::vector<unsigned> binCount(numBins, 0);
+        std::vector<float> binFrequency(numBins, 0);
+
+        for (size_t i = 1; i < tmp.size(); ++i)
+        {
+            const auto f = sampleRate / static_cast<float>(windowSize) * static_cast<float>(i);
+            auto bin = static_cast<unsigned>(std::round(std::log(f) / std::log(2.0f) * binsPerOctave));
+            if (binFrequency[bin] == 0)
+            {
+                binFrequency[bin] = f;
+            }
+            binSum[bin] += tmp[i];
+            binCount[bin]++;
+        }
+        std::transform(binCount.begin(), binCount.end(), binSum.begin(), binSum.begin(),
+                       [](auto cnt, auto sum) { return cnt > 0 ? sum / static_cast<float>(cnt) : 0; });
+        const auto maxit = max_element(binSum.begin(), binSum.end());
+        const float normFactor = 1.f / (*maxit);
+        for (float& i : binSum)
+        {
+            i *= normFactor;
+        }
+
+        return processFrequencies(binFrequency, binSum, startFreq);
+    }
+
+    template <size_t interleave, size_t channelOffset>
+    static std::vector<float> analyseByNoteBins(const std::vector<float>& resultBuffer, const size_t windowSize,
+                                                const float sampleRate)
+    {
+        auto tmp = analyse<interleave, channelOffset>(resultBuffer, windowSize);
+        constexpr size_t numBins = 12;
+        std::vector<float> binSum(numBins, 0);
+        std::vector<unsigned> binCount(numBins, 0);
+        const auto fBin = sampleRate / static_cast<float>(windowSize);
+        for (size_t i = 1; i < tmp.size(); ++i)
+        {
+            const auto f = fBin * static_cast<float>(i);
+            const auto note = std::round(Convert::frequencyToNote(f));
+            if (note > 0)
+            {
+                const auto bin = static_cast<unsigned>(note) % 12;
+                binSum[bin] += tmp[i];
+                binCount[bin]++;
+            }
+        }
+        std::transform(binCount.begin(), binCount.end(), binSum.begin(), binSum.begin(),
+                       [](auto cnt, auto sum) { return cnt > 0 ? sum / static_cast<float>(cnt) : 0; });
+        const auto maxit = max_element(binSum.begin(), binSum.end());
+        const float normFactor = 1.f / (*maxit);
+        for (float& i : binSum)
+        {
+            i *= normFactor;
+        }
+        return binSum;
+    }
+};
 
 /*
 Copyright (c) 2003-2010 Mark Borgerding

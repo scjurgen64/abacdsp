@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../../test/Wavetables/WaveTableStorage.h"
-#include "DSP/SmoothingParameter.h"
+#include "WaveTableStorage.h"
+#include "Parameters/SmoothingParameter.h"
 #include <cmath>
 #include <vector>
 

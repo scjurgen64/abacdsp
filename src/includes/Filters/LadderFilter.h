@@ -72,12 +72,7 @@ static std::vector<PoleMixingList> poleMixingList = {
 
 size_t findFilterIndex(std::string_view target)
 {
-    auto it = std::ranges::find_if(
-        poleMixingList,
-        [target](const PoleMixingList& pm)
-        {
-            return pm.name == target;
-        });
+    auto it = std::ranges::find_if(poleMixingList, [target](const PoleMixingList& pm) { return pm.name == target; });
     if (it != poleMixingList.end())
         return static_cast<size_t>(std::distance(poleMixingList.begin(), it));
     throw std::out_of_range("PoleMixingList name not found");
@@ -85,12 +80,12 @@ size_t findFilterIndex(std::string_view target)
 
 class ResonanceFrequencyModifier
 {
-public:
+  public:
     explicit ResonanceFrequencyModifier(const float sampleRate) noexcept
         : m_sampleRate(sampleRate)
-          , m_frequency(1000.f)
-          , m_resonance(0.f)
-          , m_userResonance(0.0f)
+        , m_frequency(1000.f)
+        , m_resonance(0.f)
+        , m_userResonance(0.0f)
 
     {
         updateResonance();
@@ -123,12 +118,11 @@ public:
         updateResonance();
     }
 
-private:
+  private:
     void updateResonance() noexcept
     {
-        m_resonance = m_frequency > m_sampleRate * 0.125f
-                          ? m_userResonance * m_sampleRate * 0.125f / m_frequency
-                          : m_userResonance;
+        m_resonance = m_frequency > m_sampleRate * 0.125f ? m_userResonance * m_sampleRate * 0.125f / m_frequency
+                                                          : m_userResonance;
     }
 
     float m_sampleRate;
@@ -146,7 +140,7 @@ private:
 template <std::floating_point T>
 class FourStageFilterTheoretical
 {
-public:
+  public:
     explicit FourStageFilterTheoretical(const float sampleRate, const std::array<T, 5>& coefficients)
         : m_sampleRate(sampleRate)
     {
@@ -234,10 +228,10 @@ public:
         return std::abs(num / denom);
     }
 
-private:
+  private:
     constexpr std::complex<T> first_order_stage(T p, T w) const
     {
-        // w: normalized frequency in radians (0...pi)
+        // w: normalized frequency (0...pi)
         auto z = std::polar(T(1.0), -w);
         return (T(1.0) - p) / (T(1.0) - p * z);
     }
@@ -250,21 +244,17 @@ private:
         y[0] = T(1.0); // Input
         for (size_t i = 1; i < 5; ++i)
         {
-            y[i] = y[i - 1] * first_order_stage(p, w); // Series cascade
+            y[i] = y[i - 1] * first_order_stage(p, w);
         }
         return y;
     }
 
     std::complex<T> bandpass(const std::array<std::complex<T>, 5>& y) const
     {
-        // y[1]=v[0], y[2]=v[1], y[3]=v[2], y[4]=v[3]
-        // In your code: bandpass = -m_v[3] + 2*m_v[2] - m_v[1]
         return -y[4] + T(2.0) * y[3] - y[2];
     }
 
-    constexpr std::complex<T> numerator(
-        const std::array<T, 5>& coeffs,
-        const std::array<std::complex<T>, 5>& y) const
+    constexpr std::complex<T> numerator(const std::array<T, 5>& coeffs, const std::array<std::complex<T>, 5>& y) const
     {
         std::complex<T> sum{};
         for (size_t i = 0; i < 5; ++i)
@@ -279,7 +269,7 @@ private:
 
 /*
  * 4 one pole lowpass filters (standard 6dB/oct, -3dB at cutoff) in series,
- * mixing their outputs yields various filter characteristics (multimode mixing)
+ * mixing their outputs yields various filter characteristics (called multimode mixing)
  * this filter is very suitable for fast voltage control (CC).
  *
  * refs:
@@ -290,7 +280,7 @@ private:
 
 class Filter1Pole4StageSmooth
 {
-public:
+  public:
     explicit Filter1Pole4StageSmooth(float sampleRate)
         : m_sampleRate(sampleRate)
     {
@@ -314,6 +304,8 @@ public:
         m_targetResonance = value;
     }
 
+    // because we are in the digital domain we need to adapt the resonance frequency
+    // this solution seems to be more efficient than implementing
     static float adaptResonanceFrequency(const float x)
     {
         if (x > 2800.f)
@@ -368,11 +360,8 @@ public:
         m_v[2] = m_v[1] + m_pole * (m_v[2] - m_v[1]);
         m_v[3] = m_v[2] + m_pole * (m_v[3] - m_v[2]);
 
-        const float tmpSum = m_coefficients[0] * feedback
-                             + m_coefficients[1] * m_v[0]
-                             + m_coefficients[2] * m_v[1]
-                             + m_coefficients[3] * m_v[2]
-                             + m_coefficients[4] * m_v[3];
+        const float tmpSum = m_coefficients[0] * feedback + m_coefficients[1] * m_v[0] + m_coefficients[2] * m_v[1] +
+                             m_coefficients[3] * m_v[2] + m_coefficients[4] * m_v[3];
         return tmpSum;
     }
 
@@ -389,7 +378,7 @@ public:
         m_reso = m_targetResonance;
     }
 
-private:
+  private:
     float m_sampleRate{48000.f};
     float m_cutoffFrequency{1000.f};
 
@@ -410,7 +399,7 @@ private:
 template <int f0, int f1, int f2, int f3, int f4>
 class FourStageOnePoleFilterNoResonance
 {
-public:
+  public:
     explicit FourStageOnePoleFilterNoResonance(const float sampleRate)
         : m_sampleRate(sampleRate)
     {
@@ -432,13 +421,10 @@ public:
 
     void processBlock(const float* source, float* target, const size_t numSamples)
     {
-        std::transform(source, source + numSamples, target, [this](auto value)
-        {
-            return singleStep(value);
-        });
+        std::transform(source, source + numSamples, target, [this](auto value) { return singleStep(value); });
     }
 
-private:
+  private:
     float m_sampleRate;
     float m_pole{0.5f};
     std::array<float, 4> m_v{0, 0, 0, 0};

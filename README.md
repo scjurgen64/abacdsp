@@ -9,11 +9,11 @@ No dependencies for the dsp code it self (examples and unit-test have submodules
 ### Submodules used
 - googletest
 - Audiofile
-- juce (8)
+- juce v8
 
-### class design
+### Class design
 
-- float must suffice
+- float based unless we really need precision for iterative algorithms
 - mostly templates based for adaptive code and better optimisations.
 - classes should ctor with the samplerate
 - blockoperations of BlockSize=8 Samples for better compiler optimisations

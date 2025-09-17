@@ -14,27 +14,21 @@ enum class OnePoleFilterCharacteristic
 {
     /**
      * @brief One-pole lowpass (leaky integrator).
-     * Smooths/suppresses high frequencies; output is a classic exponential low-pass.
      */
     LowPass,
 
     /**
      * @brief Canonical one-pole highpass (textbook digital HPF).
-     * Includes normalization for flat (0dB) gain at Nyquist and −3dB at cutoff.
-     * Use when accurate separation and maximum high-frequency energy are desired.
      */
     HighPass,
 
-    /**
-     * @brief Allpass: passes all frequencies with unity magnitude.
-     * Alters only phase, common for phase shaping or in delay/reverb networks.
-     */
     AllPass,
 
     /**
      * @brief Leaky highpass (input minus lowpass).
      * Computes y[n] = x[n] − lowpass(x[n]), an alternate highpass structure.
-     * Simpler, but high-frequency gain is always slightly less than 0dB; output rolls off slightly at Nyquist—unlike the canonical HighPass.
+     * N.B.: Simpler, but high-frequency gain is always slightly less than 0dB; output rolls off slightly at Nyquist,
+     * unlike the canonical HighPass.
      */
     HighPassLeaky
 };
@@ -80,6 +74,7 @@ public:
      * @brief Sets the filter decay time, specifying how long it takes the filter's response to decrease to a given
      * fraction of its initial value, as set by the target ratio parameter. Typical fractions are -20dB (0.1), -40dB
      * (0.01), and -60dB (0.001).
+     * N.B.: use this for explicit control of smoothing
      */
     void setDecayTime(const float timeInSeconds, const float fraction = 0.1f) noexcept
     {
@@ -137,8 +132,7 @@ class OnePoleFilter : public OnePoleBase<OnePoleFilter<FilterCharacteristic, Cla
 {
 public:
     explicit OnePoleFilter(float sampleRate,
-                           float cutoff = 1000.0f,
-                           float gainDb = 0.0f) noexcept(false)
+                           float cutoff = 1000.0f) noexcept(false)
         : OnePoleBase<OnePoleFilter, FilterCharacteristic>(sampleRate)
     {
         this->setCutoff(cutoff);
