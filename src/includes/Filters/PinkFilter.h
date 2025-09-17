@@ -4,11 +4,9 @@
 
 class PinkFilter
 {
-public:
-    PinkFilter()
-    {
-    }
-
+  public:
+    PinkFilter() {}
+    // feed with white noise
     float step(const float in)
     {
         static constexpr auto scale{0.05f};
@@ -28,12 +26,9 @@ public:
 
     void processBlock(const float* in, float* out, const size_t numSamples) noexcept
     {
-        std::transform(in, in + numSamples, out, [this](const float x)
-        {
-            return this->step(x);
-        });
+        std::transform(in, in + numSamples, out, [this](const float x) { return this->step(x); });
     }
 
-private:
+  private:
     std::array<float, 3> m_v{};
 };

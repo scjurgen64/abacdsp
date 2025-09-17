@@ -7,7 +7,7 @@
 #include <iostream>
 #include <iomanip>
 
-#include "Numbers/Conversions.h"
+#include "Numbers/Convert.h"
 
 
 namespace AbacDsp
@@ -46,7 +46,7 @@ enum class BiquadFilterType
 
 class BiquadCoefficients
 {
-public:
+  public:
     void coefficients(BiquadFilterType type, const float sampleRate, const float frequency, const float Q,
                       const float peakGain)
     {
@@ -164,7 +164,7 @@ public:
         return std::pow(10.0f, magnitudeInDb(cf));
     }
 
-protected:
+  protected:
     float b0{1.f}, b1{0.f}, b2{0.f}, a1{0.f}, a2{0.f};
 };
 
@@ -172,7 +172,7 @@ protected:
 template <BiquadFilterType type>
 class Biquad : public BiquadCoefficients
 {
-public:
+  public:
     void setCoefficients(const float b0_, const float b1_, const float b2_, const float a1_, const float a2_)
     {
         b0 = b0_;
@@ -194,46 +194,25 @@ public:
         switch (type)
         {
             case BiquadFilterType::AllPass:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepAllPass(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepAllPass(v); });
                 break;
             case BiquadFilterType::LowPass:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepLowPass(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepLowPass(v); });
                 break;
             case BiquadFilterType::HighPass:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepHighPass(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepHighPass(v); });
                 break;
             case BiquadFilterType::BandPass:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepBandPass(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepBandPass(v); });
                 break;
             case BiquadFilterType::Notch:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepNotch(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepNotch(v); });
                 break;
             case BiquadFilterType::Peak:
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepPeak(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepPeak(v); });
                 break;
             default: // low and high shelf and free coefficients
-                std::transform(in, in + numSamples, outBuffer, [this](const float v)
-                {
-                    return singleStepGeneric(v);
-                });
+                std::transform(in, in + numSamples, outBuffer, [this](const float v) { return singleStepGeneric(v); });
                 break;
         }
 #pragma GCC diagnostic pop
@@ -314,14 +293,14 @@ public:
         std::fill_n(m_z.data(), m_z.size(), 0.f);
     }
 
-private:
+  private:
     std::array<float, 2> m_z{};
 };
 
 template <BiquadFilterType type>
 class BiquadStereo : public BiquadCoefficients
 {
-public:
+  public:
     void computeCoefficients(const float sampleRate, const float frequency, const float Q, const float peakGain)
     {
         coefficients(type, sampleRate, frequency, Q, peakGain);
@@ -382,7 +361,7 @@ public:
         }
     }
 
-private:
+  private:
     // 1 pole filter
     void lastStepChebyshev(const float inLeft, const float inRight, float& outLeft, float& outRight)
     {
@@ -485,7 +464,7 @@ private:
 
 class ChebyshevBiquad
 {
-public:
+  public:
     static constexpr auto MAX_ORDER = 12u;
 
     struct Coefficients
@@ -493,6 +472,11 @@ public:
         float b0, b1, b2;
         float a1, a2;
     };
+
+    explicit ChebyshevBiquad(const float sampleRate)
+        : m_sampleRate(sampleRate)
+    {
+    }
 
     void setSampleRate(const float sampleRate)
     {
@@ -545,18 +529,16 @@ public:
             if (isLowPass)
             {
                 fZZero = {-1, 0};
-                fDCPoleDistance = isOdd
-                                      ? sqrt(std::norm(std::complex<float>{1, 0} - fZPole)) / 2
-                                      : std::norm(std::complex<float>{1, 0} - fZPole) / 4;
+                fDCPoleDistance = isOdd ? sqrt(std::norm(std::complex<float>{1, 0} - fZPole)) / 2
+                                        : std::norm(std::complex<float>{1, 0} - fZPole) / 4;
             }
             else
             {
                 fZPole = (std::complex<float>{beta - fZPole.real(), -fZPole.imag()}) /
                          (std::complex<float>{1 - beta * fZPole.real(), -beta * fZPole.imag()});
                 fZZero = {1, 0};
-                fDCPoleDistance = isOdd
-                                      ? sqrt(std::norm(std::complex<float>{-1, 0} - fZPole)) / 2
-                                      : std::norm(std::complex<float>{-1, 0} - fZPole) / 4;
+                fDCPoleDistance = isOdd ? sqrt(std::norm(std::complex<float>{-1, 0} - fZPole)) / 2
+                                        : std::norm(std::complex<float>{-1, 0} - fZPole) / 4;
             }
             return std::make_tuple(fZPole, fZZero, fDCPoleDistance);
         };
@@ -724,8 +706,7 @@ public:
     }
 
     void process1stOrderStereo(const size_t index, const float* left, const float* right, float* outLeft,
-                               float* outRight,
-                               const size_t numSamples)
+                               float* outRight, const size_t numSamples)
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
@@ -746,13 +727,12 @@ public:
     }
 
     void processElementStereo(const size_t index, const float* left, const float* right, float* outLeft,
-                              float* outRight,
-                              const size_t numSamples)
+                              float* outRight, const size_t numSamples)
     {
         for (size_t i = 0; i < numSamples; ++i)
         {
-            outLeft[i] = stepChebyType2(left[i], coefficients[index].b0, coefficients[index].b1,
-                                        coefficients[index].a1, coefficients[index].a2, z[index][0], z[index][1]);
+            outLeft[i] = stepChebyType2(left[i], coefficients[index].b0, coefficients[index].b1, coefficients[index].a1,
+                                        coefficients[index].a2, z[index][0], z[index][1]);
             outRight[i] = stepChebyType2(right[i], coefficients[index].b0, coefficients[index].b1,
                                          coefficients[index].a1, coefficients[index].a2, z[index][2], z[index][3]);
         }
@@ -837,17 +817,17 @@ public:
     void printCoefficients() const
     {
         std::cout << "// fc=" << m_fc << " ripple=" << m_ripple << " " << (m_isLowPass ? "low pass" : "high pass")
-            << std::endl;
+                  << std::endl;
         std::cout << "std::array<std::array<float, 5>, " << m_elements << "> coefficients = {{\n";
         for (size_t i = 0; i < m_elements; ++i)
         {
             std::cout << "\t{" << std::setprecision(14) << coefficients[i].b0 << "f, " << coefficients[i].b1 << "f, "
-                << coefficients[i].b2 << "f, " << coefficients[i].a1 << "f, " << coefficients[i].a2 << "f},\n";
+                      << coefficients[i].b2 << "f, " << coefficients[i].a1 << "f, " << coefficients[i].a2 << "f},\n";
         }
         std::cout << "}};" << std::endl;
     }
 
-private:
+  private:
     static std::complex<float> BilinearTransform(const std::complex<float> fS)
     {
         const float fDenominator = std::norm(std::complex<float>{1, 0} - fS);

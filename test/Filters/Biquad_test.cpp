@@ -35,10 +35,10 @@ inline void renderWithSineWave(std::vector<float>& target, const double sampleRa
 
 class TestBiquadFilterSet
 {
-public:
+  public:
     TestBiquadFilterSet(const AbacDsp::BiquadFilterType ft_, const double gain_)
         : type(ft_)
-          , gain(gain_)
+        , gain(gain_)
     {
     }
 
@@ -63,12 +63,12 @@ using TestQFactor = double;
 class DspBiquadFilterTests
     : public testing::TestWithParam<std::tuple<TestBiquadFilterSet, TestQFactor, FilterCutOffFrequency, TestFrequency>>
 {
-public:
+  public:
 };
 
 class WrapperOfSpecializedBiquads
 {
-public:
+  public:
     void setType(AbacDsp::BiquadFilterType type)
     {
         m_currentFilterType = type;
@@ -207,10 +207,8 @@ TEST_P(DspBiquadFilterTests, allMagnitudesMono)
 
 class WrapperOfSpecializedBiquadsStereo
 {
-public:
-    void setType(AbacDsp::BiquadFilterType type)
-    {
-    }
+  public:
+    void setType(AbacDsp::BiquadFilterType type) {}
 
     void computeCoefficients(AbacDsp::BiquadFilterType type, const float sampleRate, const float frequency,
                              const float Q, const float peakGain)
@@ -353,17 +351,16 @@ TEST_P(DspBiquadFilterTests, allMagnitudesStereo)
 
 INSTANTIATE_TEST_SUITE_P(DspBiquadMagnitudeTest, DspBiquadFilterTests,
                          ::testing::Combine(testing::ValuesIn(filterTestSet),
-                             testing::Values(StandardQValue, StrongQvalue, WeakQValue),
-                             testing::Values(125.f, 2000.f),
-                             testing::Values(25.f, 200.f, 800.f, 6400.f)));
+                                            testing::Values(StandardQValue, StrongQvalue, WeakQValue),
+                                            testing::Values(125.f, 2000.f),
+                                            testing::Values(25.f, 200.f, 800.f, 6400.f)));
 
 
 TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassMono)
 {
     constexpr auto sampleRate{48000.0f};
 
-    AbacDsp::ChebyshevBiquad sut;
-    sut.setSampleRate(sampleRate);
+    AbacDsp::ChebyshevBiquad sut(sampleRate);
 
     for (size_t order = 1; order < 10; ++order)
     {
@@ -455,8 +452,7 @@ TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassMono)
     for (size_t order = 8; order < 10; ++order)
     {
         constexpr auto sampleRate{48000.0f};
-        AbacDsp::ChebyshevBiquad sut;
-        sut.setSampleRate(sampleRate);
+        AbacDsp::ChebyshevBiquad sut(sampleRate);
         sut.computeType2(order, 1000, 3, true);
 
         std::vector<float> wave(48000, 0);
