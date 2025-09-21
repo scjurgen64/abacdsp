@@ -9,7 +9,7 @@ int main()
 {
     constexpr auto sampleRate{48000.f};
     std::vector<float> data(10000, 0.f);
-    NaiveDsp::Generator<NaiveDsp::Wave::Saw> sw(sampleRate, 200);
+    AbacDsp::Generator<AbacDsp::Wave::Saw> sw(sampleRate, 200);
     sw.render(data.begin(), data.end());
     AbacDsp::OnePoleFilter<AbacDsp::OnePoleFilterCharacteristic::LowPass> lowpass(sampleRate);
     lowpass.setCutoff(500.f);

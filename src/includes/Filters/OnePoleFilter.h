@@ -399,4 +399,4 @@ private:
     std::array<float, NumChannels> m_v{};
     std::array<float, NumChannels> m_x1{};
 };
-} // namespace AbacDsp
+}

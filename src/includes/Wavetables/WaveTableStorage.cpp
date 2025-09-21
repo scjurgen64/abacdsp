@@ -1,5 +1,5 @@
 
-#include "../../../test/Wavetables/WaveTableStorage.h"
+#include "WaveTableStorage.h"
 
 #include <utility>
 

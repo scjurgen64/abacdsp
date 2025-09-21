@@ -1,4 +1,5 @@
 #pragma once
+#include "Analysis/FftSmall.h"
 
 #include <array>
 #include <algorithm>

@@ -16,25 +16,45 @@
  * KissFft (I guess save)
  */
 
+namespace AbacDsp
+{
+
+// Window type tags
+struct FftHannWindow
+{
+};
+struct FftFlatTopWindow
+{
+};
+struct FftRectangularWindow
+{
+};
+struct FftBlackmanWindow
+{
+};
+
 class BasicFFT
 {
   public:
-    template <typename T>
+    template <typename T, typename WindowTag = FftFlatTopWindow>
     static void realDataToMagnitude(const std::vector<T>& in, std::vector<T>& magnitudes)
     {
-        auto N = in.size();
-        if (!(N != 0 && ((N & (N - 1)) == 0))) // check power of 2
+        const auto N = in.size();
+        if (!(N != 0 && ((N & (N - 1)) == 0)))
         {
             std::cerr << " FFT " << __FUNCTION__ << " array size must be multiple of 2^n" << std::endl;
             return;
         }
+
         std::valarray<std::complex<double>> inData(N);
         for (size_t i = 0; i < N; ++i)
         {
             inData[i] = std::complex<double>(in[i], 0.0);
         }
-        flatTopWindow(inData);
+
+        applyWindow<WindowTag>(inData);
         fft(inData);
+
         magnitudes.resize(N / 2);
         for (size_t i = 0; i < N / 2; ++i)
         {
@@ -42,29 +62,73 @@ class BasicFFT
         }
     }
 
+    // Legacy interface for backward compatibility
+    template <typename T>
+    static void realDataToMagnitude(const std::vector<T>& in, std::vector<T>& magnitudes, bool useFlatTopWindow)
+    {
+        if (useFlatTopWindow)
+        {
+            realDataToMagnitude<T, FftFlatTopWindow>(in, magnitudes);
+        }
+        else
+        {
+            realDataToMagnitude<T, FftHannWindow>(in, magnitudes);
+        }
+    }
+
   private:
+    template <typename WindowTag>
+    static void applyWindow(std::valarray<std::complex<double>>& x)
+    {
+        if constexpr (std::is_same_v<WindowTag, FftHannWindow>)
+        {
+            hannWindow(x);
+        }
+        else if constexpr (std::is_same_v<WindowTag, FftFlatTopWindow>)
+        {
+            flatTopWindow(x);
+        }
+        else if constexpr (std::is_same_v<WindowTag, FftRectangularWindow>)
+        {
+            // No windowing applied for rectangular window
+        }
+        else if constexpr (std::is_same_v<WindowTag, FftBlackmanWindow>)
+        {
+            blackmanWindow(x);
+        }
+    }
+
     static void hannWindow(std::valarray<std::complex<double>>& x)
     {
-        for (size_t i = 0; i < x.size(); i++)
+        for (size_t i = 0; i < x.size(); ++i)
         {
             const auto w = static_cast<double>(i) / static_cast<double>(x.size() - 1);
-            x[i] *= 0.5 * (1 - cos(2.0 * M_PI * w));
+            x[i] *= 0.5 * (1 - std::cos(2.0 * std::numbers::pi_v<float> * w));
         }
     }
 
-    // flat top window is good for measuring sine signals, bad frequency resolution
     static void flatTopWindow(std::valarray<std::complex<double>>& x)
     {
-        for (size_t i = 0; i < x.size(); i++)
+        for (size_t i = 0; i < x.size(); ++i)
         {
             const auto w = static_cast<double>(i) / static_cast<double>(x.size() - 1);
-            x[i] *= 1 - 1.93 * cos(2.0 * M_PI * w) + 1.29 * cos(4.0 * M_PI * w) - 0.388 * cos(6.0 * M_PI * w) +
-                    0.0322 * cos(8.0 * M_PI * w);
+            x[i] *= 1 - 1.93 * std::cos(2.0 * std::numbers::pi_v<float> * w) +
+                    1.29 * std::cos(4.0 * std::numbers::pi_v<float> * w) -
+                    0.388 * std::cos(6.0 * std::numbers::pi_v<float> * w) +
+                    0.0322 * std::cos(8.0 * std::numbers::pi_v<float> * w);
         }
     }
 
-    // Cooley–Tukey FFT (in-place, divide-and-conquer)
-    // High memory requirements and redundancy although more intuitive
+    static void blackmanWindow(std::valarray<std::complex<double>>& x)
+    {
+        for (size_t i = 0; i < x.size(); ++i)
+        {
+            const auto w = static_cast<double>(i) / static_cast<double>(x.size() - 1);
+            x[i] *= 0.42 - 0.5 * std::cos(2.0 * std::numbers::pi_v<float> * w) +
+                    0.08 * std::cos(4.0 * std::numbers::pi_v<float> * w);
+        }
+    }
+
     static void fft(std::valarray<std::complex<double>>& x)
     {
         const size_t N = x.size();
@@ -81,7 +145,9 @@ class BasicFFT
 
         for (size_t k = 0; k < N / 2; ++k)
         {
-            const auto t = std::polar(1.0, -2 * M_PI * static_cast<double>(k) / static_cast<double>(N)) * odd[k];
+            const auto t =
+                std::polar(1.0, -2 * std::numbers::pi_v<float> * static_cast<double>(k) / static_cast<double>(N)) *
+                odd[k];
             x[k] = even[k] + t;
             x[k + N / 2] = even[k] - t;
         }
@@ -656,3 +722,4 @@ using HannWindowedMagnitudesFft = WindowedMagnitudesFft<HannWindow, N>;
 
 template <size_t N>
 using BlackmanWindowedMagnitudesFft = WindowedMagnitudesFft<BlackmanWindow, N>;
+}

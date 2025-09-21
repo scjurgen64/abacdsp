@@ -3,9 +3,11 @@
 
 #include "Parameters/LinearParameter.h" // Assume this is the header file for our parameter class
 
+namespace AbacDsp::Test
+{
 class LinearParameterTest : public ::testing::Test
 {
-protected:
+  protected:
     LinearParameter sut;
 
     void SetUp() override
@@ -108,7 +110,7 @@ INSTANTIATE_TEST_SUITE_P(TransitionTimes, LinearParameterTransitionTest, ::testi
 
 class LinearSmoothingParameterTest : public ::testing::Test
 {
-protected:
+  protected:
     LinearSmoothingParameter<4> sut;
 };
 
@@ -160,4 +162,5 @@ TEST_F(LinearSmoothingParameterTest, SetValueNoChangeDoesNotSmooth)
     EXPECT_FLOAT_EQ(1.0f, sut.getValue(1));
     EXPECT_FLOAT_EQ(1.0f, sut.getValue(2));
     EXPECT_FLOAT_EQ(1.0f, sut.getValue(3));
+}
 }

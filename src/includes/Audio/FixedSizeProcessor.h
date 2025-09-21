@@ -4,6 +4,9 @@
 
 #include "AudioBuffer.h"
 
+namespace AbacDsp
+{
+
 template <size_t Channels, size_t FixedFrameSize, typename ExternalBufferType>
 class FixedSizeProcessor
 {
@@ -81,9 +84,11 @@ class FixedSizeProcessor
             }
         }
     }
+
   private:
     ProcessFunction m_processFunc;
     InternalBuffer m_inputBuffer{};
     InternalBuffer m_outputBuffer{};
     unsigned m_feedAndEat{0};
 };
+}

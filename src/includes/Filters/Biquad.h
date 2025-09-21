@@ -1,11 +1,14 @@
 
 #pragma once
 
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <complex>
 
 #include <iostream>
 #include <iomanip>
+#include <tuple>
 
 #include "Numbers/Convert.h"
 
@@ -20,6 +23,19 @@ namespace AbacDsp
         10 * std::log10(std::pow((b0 + b1 + b2), 2.f) + (b0 * b2 * phi - (b1 * (b0 + b2) + 4 * b0 * b2)) * phi) -
         10 * std::log10(std::pow((1 + a1 + a2), 2.f) + (a2 * phi - (a1 * (1 + a2) + 4 * a2)) * phi);
     return db;
+}
+template <std::floating_point T>
+[[nodiscard]] T inline biquadMagnitudeLinear(const T cf, const T b0, const T b1, const T b2, const T a1, const T a2)
+{
+    const auto phi = 4 * std::pow(std::sin(static_cast<T>(M_PI) * cf), 2);
+
+    const auto b_sum = b0 + b1 + b2;
+    const auto numerator = b_sum * b_sum + (b0 * b2 * phi - (b1 * (b0 + b2) + 4 * b0 * b2)) * phi;
+
+    const auto a_sum = 1 + a1 + a2;
+    const auto denominator = a_sum * a_sum + (a2 * phi - (a1 * (1 + a2) + 4 * a2)) * phi;
+
+    return std::sqrt(numerator / denominator);
 }
 
 [[nodiscard]] float inline biquadMagnitude(const float cf, const float b0, const float b1, const float b2,
@@ -157,6 +173,11 @@ class BiquadCoefficients
     [[nodiscard]] float magnitudeInDb(const float cf) const
     {
         return biquadMagnitudeInDb(cf, b0, b1, b2, a1, a2);
+    }
+
+    [[nodiscard]] float magnitudeLinear(const float cf) const
+    {
+        return biquadMagnitudeLinear<double>(cf, b0, b1, b2, a1, a2);
     }
 
     [[nodiscard]] float magnitude(const float cf) const

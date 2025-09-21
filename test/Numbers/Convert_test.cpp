@@ -3,7 +3,12 @@
 
 #include "Numbers/Convert.h"
 
+namespace AbacDsp::Test
+{
+namespace
+{
 constexpr float epsilon{1E-6f};
+}
 
 TEST(ConvertTests, getPanFactorNormalized)
 {
@@ -17,7 +22,8 @@ TEST(ConvertTests, getPanFactorNormalized)
     }
 }
 
-
+namespace
+{
 constexpr float MidiNoteC4{60.0f};
 constexpr float MidiNoteCSharp4{61.0f};
 constexpr float MidiNoteD4{62.0f};
@@ -25,6 +31,7 @@ constexpr float MidiNoteA4{69.0f};
 constexpr float MidiNoteC5{72.0f};
 constexpr float MidiNoteA5{81.0f};
 constexpr float MidiNoteC6{84.0f};
+}
 
 TEST(ConvertTests, frequencyToNote)
 {
@@ -134,4 +141,5 @@ TEST(ConvertTests, centsToRelativePitch)
     EXPECT_NEAR(Convert::centsToRelativePitch(-100.0f), std::pow(2.0f, -1.0f / 12.0f), epsilon);
     EXPECT_NEAR(Convert::centsToRelativePitch(1.0f), std::pow(2.0f, 1.0f / 1200.0f), epsilon);
     EXPECT_NEAR(Convert::centsToRelativePitch(-1.0f), std::pow(2.0f, -1.0f / 1200.0f), epsilon);
+}
 }

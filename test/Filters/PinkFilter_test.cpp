@@ -3,7 +3,8 @@
 
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
-
+namespace AbacDsp::Test
+{
 TEST(PinkFilterTest, staysInRange_FastPink)
 {
     std::minstd_rand generator(4242);
@@ -90,4 +91,5 @@ TEST(PinkFilterTest, plausibleSpectrum_AccuratePink)
     {
         EXPECT_NEAR(std::log10(fftResult[i]) * 20 / expected[i], 1.f, 1E-4f) << "failed at index " << i;
     }
+}
 }

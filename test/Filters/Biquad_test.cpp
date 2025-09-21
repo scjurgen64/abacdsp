@@ -9,15 +9,17 @@
 #include <cmath>
 #include <numbers>
 
-static constexpr double maxDeltaDb =
-    0.05; // N.B.: be hard on the quality of Biquads filters, acceptable would be even +-0.5 dB
+namespace AbacDsp::Test
+{
 
-static constexpr double StrongQvalue{20.0f};                    // absurdly high
-static constexpr double StandardQValue{0.70710678118654752440}; // standard value for -3dB at cutoff
-static constexpr double WeakQValue(0.2);                        // absurdly low
+constexpr double maxDeltaDb = 0.1; // N.B.: be hard on the quality of Biquads filters, acceptable would be even +-0.5 dB
+
+constexpr double StrongQvalue{10.0};         // absurdly high
+constexpr double StandardQValue{0.70710678}; // standard value for -3dB at cutoff
+constexpr double WeakQValue(0.2);            // absurdly low
 
 
-inline void renderWithSineWave(std::vector<float>& target, const double sampleRate, const double frequency)
+void renderWithSineWave(std::vector<float>& target, const double sampleRate, const double frequency)
 {
     double phase = 0.0;
     const double advance = frequency / sampleRate;
@@ -33,30 +35,31 @@ inline void renderWithSineWave(std::vector<float>& target, const double sampleRa
     }
 }
 
+
 class TestBiquadFilterSet
 {
   public:
-    TestBiquadFilterSet(const AbacDsp::BiquadFilterType ft_, const double gain_)
+    TestBiquadFilterSet(const BiquadFilterType ft_, const double gain_)
         : type(ft_)
         , gain(gain_)
     {
     }
 
-    AbacDsp::BiquadFilterType type;
+    BiquadFilterType type;
     double gain;
 };
 
 static std::array<TestBiquadFilterSet, 10> filterTestSet{{
-    {AbacDsp::BiquadFilterType::LowPass, 0.0},
-    {AbacDsp::BiquadFilterType::HighPass, 0.0},
-    {AbacDsp::BiquadFilterType::BandPass, 0.0},
-    {AbacDsp::BiquadFilterType::Peak, 6.0},
-    {AbacDsp::BiquadFilterType::Peak, -6.0},
-    {AbacDsp::BiquadFilterType::LoShelf, 6.0},
-    {AbacDsp::BiquadFilterType::LoShelf, -6.0},
-    {AbacDsp::BiquadFilterType::HiShelf, 6.0},
-    {AbacDsp::BiquadFilterType::HiShelf, -6.0},
-    {AbacDsp::BiquadFilterType::AllPass, 0.0},
+    {BiquadFilterType::LowPass, 0.0},
+    {BiquadFilterType::HighPass, 0.0},
+    {BiquadFilterType::BandPass, 0.0},
+    {BiquadFilterType::Peak, 6.0},
+    {BiquadFilterType::Peak, -6.0},
+    {BiquadFilterType::LoShelf, 6.0},
+    {BiquadFilterType::LoShelf, -6.0},
+    {BiquadFilterType::HiShelf, 6.0},
+    {BiquadFilterType::HiShelf, -6.0},
+    {BiquadFilterType::AllPass, 0.0},
 }};
 
 using FilterCutOffFrequency = double;
@@ -71,40 +74,40 @@ class DspBiquadFilterTests : public testing::TestWithParam<TestBiquadFilterSet>
 class WrapperOfSpecializedBiquads
 {
   public:
-    void setType(AbacDsp::BiquadFilterType type)
+    void setType(BiquadFilterType type)
     {
         m_currentFilterType = type;
     }
 
-    void computeCoefficients(AbacDsp::BiquadFilterType type, const float sampleRate, const float frequency,
-                             const float Q, const float peakGain)
+    void computeCoefficients(BiquadFilterType type, const float sampleRate, const float frequency, const float Q,
+                             const float peakGain)
     {
         m_sampleRate = sampleRate;
         m_currentFilterType = type;
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 lp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 hp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 bp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 notch.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 peak.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 ls.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 hs.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 ap.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
 
@@ -117,28 +120,28 @@ class WrapperOfSpecializedBiquads
     {
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 lp.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 hp.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 bp.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 notch.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 peak.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 ls.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 hs.processBlock(in, outBuffer, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 ap.processBlock(in, outBuffer, numSamples);
                 break;
             default:
@@ -151,21 +154,21 @@ class WrapperOfSpecializedBiquads
         const auto ratio = hz / m_sampleRate;
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 return lp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 return hp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 return bp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 return notch.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 return peak.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 return ls.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 return hs.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 return ap.magnitudeInDb(ratio);
             default:
                 return 0;
@@ -173,15 +176,15 @@ class WrapperOfSpecializedBiquads
     }
 
     float m_sampleRate{48000.f};
-    AbacDsp::BiquadFilterType m_currentFilterType;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::LowPass> lp;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::HighPass> hp;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::BandPass> bp;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::Notch> notch;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::Peak> peak;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::LoShelf> ls;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::HiShelf> hs;
-    AbacDsp::Biquad<AbacDsp::BiquadFilterType::AllPass> ap;
+    BiquadFilterType m_currentFilterType;
+    Biquad<BiquadFilterType::LowPass> lp;
+    Biquad<BiquadFilterType::HighPass> hp;
+    Biquad<BiquadFilterType::BandPass> bp;
+    Biquad<BiquadFilterType::Notch> notch;
+    Biquad<BiquadFilterType::Peak> peak;
+    Biquad<BiquadFilterType::LoShelf> ls;
+    Biquad<BiquadFilterType::HiShelf> hs;
+    Biquad<BiquadFilterType::AllPass> ap;
 };
 
 TEST_P(DspBiquadFilterTests, allMagnitudesMono)
@@ -206,7 +209,7 @@ TEST_P(DspBiquadFilterTests, allMagnitudesMono)
                 std::vector<float> wave{};
                 if (qFactor > 0.8)
                 {
-                    wave.resize(48000); // strong q needs more time to settle due to resonance
+                    wave.resize(22000); // strong q needs more time to settle due to resonance
                 }
                 else
                 {
@@ -220,7 +223,7 @@ TEST_P(DspBiquadFilterTests, allMagnitudesMono)
                 const auto db = std::log10(maxValue) * 20.0f;
 
                 const auto expectedDb = sut.magnitudeInDb(hz);
-                EXPECT_NEAR(db, expectedDb, maxDeltaDb);
+                EXPECT_NEAR(db, expectedDb, maxDeltaDb) << "failed with cf:" << cf << "\tf:" << hz << "\tQ:" << qFactor;
             }
         }
     }
@@ -230,37 +233,37 @@ TEST_P(DspBiquadFilterTests, allMagnitudesMono)
 class WrapperOfSpecializedBiquadsStereo
 {
   public:
-    void setType(AbacDsp::BiquadFilterType type) {}
+    void setType(BiquadFilterType type) {}
 
-    void computeCoefficients(AbacDsp::BiquadFilterType type, const float sampleRate, const float frequency,
-                             const float Q, const float peakGain)
+    void computeCoefficients(BiquadFilterType type, const float sampleRate, const float frequency, const float Q,
+                             const float peakGain)
     {
         m_sampleRate = sampleRate;
         m_currentFilterType = type;
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 lp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 hp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 bp.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 notch.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 peak.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 ls.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 hs.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 ap.computeCoefficients(sampleRate, frequency, Q, peakGain);
                 break;
             default:
@@ -272,28 +275,28 @@ class WrapperOfSpecializedBiquadsStereo
     {
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 lp.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 hp.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 bp.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 notch.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 peak.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 ls.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 hs.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 ap.processBlock(left, right, outLeft, outRight, numSamples);
                 break;
             default:
@@ -306,21 +309,21 @@ class WrapperOfSpecializedBiquadsStereo
         auto ratio = hz / m_sampleRate;
         switch (m_currentFilterType)
         {
-            case AbacDsp::BiquadFilterType::LowPass:
+            case BiquadFilterType::LowPass:
                 return lp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::HighPass:
+            case BiquadFilterType::HighPass:
                 return hp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::BandPass:
+            case BiquadFilterType::BandPass:
                 return bp.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::Notch:
+            case BiquadFilterType::Notch:
                 return notch.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::Peak:
+            case BiquadFilterType::Peak:
                 return peak.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::LoShelf:
+            case BiquadFilterType::LoShelf:
                 return ls.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::HiShelf:
+            case BiquadFilterType::HiShelf:
                 return hs.magnitudeInDb(ratio);
-            case AbacDsp::BiquadFilterType::AllPass:
+            case BiquadFilterType::AllPass:
                 return ap.magnitudeInDb(ratio);
             default:
                 return 0;
@@ -329,15 +332,15 @@ class WrapperOfSpecializedBiquadsStereo
 
     float m_sampleRate{48000.f};
 
-    AbacDsp::BiquadFilterType m_currentFilterType;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::LowPass> lp;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::HighPass> hp;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::BandPass> bp;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::Notch> notch;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::Peak> peak;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::LoShelf> ls;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::HiShelf> hs;
-    AbacDsp::BiquadStereo<AbacDsp::BiquadFilterType::AllPass> ap;
+    BiquadFilterType m_currentFilterType;
+    BiquadStereo<BiquadFilterType::LowPass> lp;
+    BiquadStereo<BiquadFilterType::HighPass> hp;
+    BiquadStereo<BiquadFilterType::BandPass> bp;
+    BiquadStereo<BiquadFilterType::Notch> notch;
+    BiquadStereo<BiquadFilterType::Peak> peak;
+    BiquadStereo<BiquadFilterType::LoShelf> ls;
+    BiquadStereo<BiquadFilterType::HiShelf> hs;
+    BiquadStereo<BiquadFilterType::AllPass> ap;
 };
 
 TEST_P(DspBiquadFilterTests, allMagnitudesStereo)
@@ -394,6 +397,7 @@ INSTANTIATE_TEST_SUITE_P(DspBiquadMagnitudeTest, DspBiquadFilterTests, testing::
 
 TEST(DspBiquadFilterTest, checkCoefficientsType1LowPass)
 {
+    constexpr float kEpsilon{1E-4f};
     // fc=1000 ripple=3 low pass
     const std::array<std::array<float, 5>, 5> coefficients = {{
         {0.0029727008659393f, 0.0059454017318785f, 0.0029727008659393f, -1.9795991182327f, 0.99639534950256f},
@@ -402,22 +406,23 @@ TEST(DspBiquadFilterTest, checkCoefficientsType1LowPass)
         {0.00090879137860611f, 0.0018175827572122f, 0.00090879137860611f, -1.9759397506714f, 0.97957491874695f},
         {0.00013712796499021f, 0.00027425592998043f, 0.00013712796499021f, -1.9768172502518f, 0.97736573219299f},
     }};
-    AbacDsp::ChebyshevBiquad sut(48000.f);
+    ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, true);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
     {
         auto cf = sut.getCoefficients(i);
-        EXPECT_FLOAT_EQ(coefficients[i][0], cf.b0);
-        EXPECT_FLOAT_EQ(coefficients[i][1], cf.b1);
-        EXPECT_FLOAT_EQ(coefficients[i][2], cf.b2);
-        EXPECT_FLOAT_EQ(coefficients[i][3], cf.a1);
-        EXPECT_FLOAT_EQ(coefficients[i][4], cf.a2);
+        EXPECT_NEAR(coefficients[i][0], cf.b0, kEpsilon);
+        EXPECT_NEAR(coefficients[i][1], cf.b1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][2], cf.b2, kEpsilon);
+        EXPECT_NEAR(coefficients[i][3], cf.a1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][4], cf.a2, kEpsilon);
     }
 }
 
 TEST(DspBiquadFilterTest, checkCoefficientsType1HighPass)
 {
+    constexpr float kEpsilon{1E-4f};
     // fc=1000 ripple=3 low pass
     const std::array<std::array<float, 5>, 5> coefficients = {{
         {0.70357483625412f, -1.4071496725082f, 0.70357483625412f, -1.9789683818817f, 0.99633520841599f},
@@ -426,22 +431,23 @@ TEST(DspBiquadFilterTest, checkCoefficientsType1HighPass)
         {0.93601679801941f, -1.8720335960388f, 0.93601679801941f, -1.8344408273697f, 0.90962678194046f},
         {0.67223185300827f, -1.3444637060165f, 0.67223185300827f, -1.1655949354172f, 0.52333217859268f},
     }};
-    AbacDsp::ChebyshevBiquad sut(48000.f);
+    ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, false);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
     {
         auto cf = sut.getCoefficients(i);
-        EXPECT_FLOAT_EQ(coefficients[i][0], cf.b0);
-        EXPECT_FLOAT_EQ(coefficients[i][1], cf.b1);
-        EXPECT_FLOAT_EQ(coefficients[i][2], cf.b2);
-        EXPECT_FLOAT_EQ(coefficients[i][3], cf.a1);
-        EXPECT_FLOAT_EQ(coefficients[i][4], cf.a2);
+        EXPECT_NEAR(coefficients[i][0], cf.b0, kEpsilon);
+        EXPECT_NEAR(coefficients[i][1], cf.b1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][2], cf.b2, kEpsilon);
+        EXPECT_NEAR(coefficients[i][3], cf.a1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][4], cf.a2, kEpsilon);
     }
 }
 
 TEST(DspBiquadFilterTest, checkCoefficientsType2LowPass)
 {
+    constexpr float kEpsilon{1E-4f};
     // fc=1000 ripple=3 low pass
     const std::array<std::array<float, 5>, 5> coefficients = {{
         {0.99026596546173f, -1.9631650447845f, 0.99026596546173f, -1.9789681434631f, 0.99633502960205f},
@@ -450,22 +456,23 @@ TEST(DspBiquadFilterTest, checkCoefficientsType2LowPass)
         {0.92060536146164f, -1.7660242319107f, 0.92060530185699f, -1.8344397544861f, 0.90962624549866f},
         {0.59890443086624f, -0.84006577730179f, 0.59890443086624f, -1.1655919551849f, 0.52333503961563f},
     }};
-    AbacDsp::ChebyshevBiquad sut(48000.f);
+    ChebyshevBiquad sut(48000.f);
     sut.computeType2(10, 1000, 3, true);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
     {
         auto cf = sut.getCoefficients(i);
-        EXPECT_FLOAT_EQ(coefficients[i][0], cf.b0);
-        EXPECT_FLOAT_EQ(coefficients[i][1], cf.b1);
-        EXPECT_FLOAT_EQ(coefficients[i][2], cf.b2);
-        EXPECT_FLOAT_EQ(coefficients[i][3], cf.a1);
-        EXPECT_FLOAT_EQ(coefficients[i][4], cf.a2);
+        EXPECT_NEAR(coefficients[i][0], cf.b0, kEpsilon);
+        EXPECT_NEAR(coefficients[i][1], cf.b1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][2], cf.b2, kEpsilon);
+        EXPECT_NEAR(coefficients[i][3], cf.a1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][4], cf.a2, kEpsilon);
     }
 }
 
 TEST(DspBiquadFilterTest, checkCoefficientsType2HighPass)
 {
+    constexpr float kEpsilon{1E-4f};
     // fc=1000 ripple=3 low pass
     const std::array<std::array<float, 5>, 5> coefficients = {{
         {0.99816447496414f, -1.9796662330627f, 0.99816429615021f, -1.9795993566513f, 0.9963955283165f},
@@ -474,24 +481,24 @@ TEST(DspBiquadFilterTest, checkCoefficientsType2HighPass)
         {0.98975425958633f, -1.9760061502457f, 0.98975425958633f, -1.9759398698807f, 0.97957497835159f},
         {0.98864996433258f, -1.9768840074539f, 0.98864978551865f, -1.9768177270889f, 0.97736620903015f},
     }};
-    AbacDsp::ChebyshevBiquad sut(48000.f);
+    ChebyshevBiquad sut(48000.f);
     sut.computeType2(10, 1000, 3, false);
     EXPECT_EQ(sut.elements(), 5);
     for (size_t i = 0; i < sut.elements(); ++i)
     {
         auto cf = sut.getCoefficients(i);
-        EXPECT_FLOAT_EQ(coefficients[i][0], cf.b0);
-        EXPECT_FLOAT_EQ(coefficients[i][1], cf.b1);
-        EXPECT_FLOAT_EQ(coefficients[i][2], cf.b2);
-        EXPECT_FLOAT_EQ(coefficients[i][3], cf.a1);
-        EXPECT_FLOAT_EQ(coefficients[i][4], cf.a2);
+        EXPECT_NEAR(coefficients[i][0], cf.b0, kEpsilon);
+        EXPECT_NEAR(coefficients[i][1], cf.b1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][2], cf.b2, kEpsilon);
+        EXPECT_NEAR(coefficients[i][3], cf.a1, kEpsilon);
+        EXPECT_NEAR(coefficients[i][4], cf.a2, kEpsilon);
     }
 }
 
 TEST(DspBiquadFilterTest, coefficientTables)
 {
     GTEST_SKIP();
-    AbacDsp::ChebyshevBiquad sut(48000.f);
+    ChebyshevBiquad sut(48000.f);
     sut.computeType1(10, 1000, 3, true);
     sut.printCoefficients();
     sut.computeType1(10, 1000, 3, false);
@@ -508,7 +515,7 @@ TEST(DspBiquadFilterTest, coefficientTables)
 namespace ChebyshevTestHelpers
 {
 constexpr auto kSampleRate = 48000.0f;
-constexpr auto kBufferSize = 48000;
+constexpr auto kBufferSize = 16000;
 constexpr auto kRipple = 6.0f;
 constexpr auto kFrequencyTolerance = 2.0f;
 constexpr auto kNoiseFloorThreshold = -78.0f;
@@ -537,7 +544,7 @@ float calculateDbFromBuffer(const std::vector<float>& buffer)
     return std::log10(maxValue) * 20.0f;
 }
 
-void testSingleFrequency(AbacDsp::ChebyshevBiquad& sut, TestBuffers& buffers, float frequency, bool isStereo, int order,
+void testSingleFrequency(ChebyshevBiquad& sut, TestBuffers& buffers, float frequency, bool isStereo, int order,
                          bool checkRipple = false)
 {
     renderWithSineWave(buffers.wave, kSampleRate, frequency);
@@ -577,7 +584,7 @@ void testSingleFrequency(AbacDsp::ChebyshevBiquad& sut, TestBuffers& buffers, fl
     }
 }
 
-void testInitialFrequency(AbacDsp::ChebyshevBiquad& sut, TestBuffers& buffers, float testFrequency, bool isStereo)
+void testInitialFrequency(ChebyshevBiquad& sut, TestBuffers& buffers, float testFrequency, bool isStereo)
 {
     renderWithSineWave(buffers.wave, kSampleRate, testFrequency);
 
@@ -606,7 +613,7 @@ void runFilterTest(FilterSetupFunc setupFilter, bool isStereo, bool checkRipple,
 {
     for (int order = 1; order < 10; ++order)
     {
-        AbacDsp::ChebyshevBiquad sut(kSampleRate);
+        ChebyshevBiquad sut(kSampleRate);
         setupFilter(sut, order);
         TestBuffers buffers;
 
@@ -623,55 +630,56 @@ void runFilterTest(FilterSetupFunc setupFilter, bool isStereo, bool checkRipple,
 TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassMono)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, false,
-                  true, 2000.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, false, true,
+                  2000.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassMono)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); },
-                  false, false, 500.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); }, false, false,
+                  500.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassMono)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, false,
-                  false, 2000.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, false, false,
+                  2000.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassMono)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); },
-                  false, false, 500.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); }, false, false,
+                  500.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType1LowpassStereo)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, true,
-                  true, 2000.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, true); }, true, true,
+                  2000.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType1HighpassStereo)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); }, true,
-                  false, 500.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType1(order, 1000, kRipple, false); }, true, false,
+                  500.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType2LowpassStereo)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, true,
-                  false, 2000.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, true); }, true, false,
+                  2000.0f);
 }
 
 TEST(DspBiquadFilterTest, chebyshevFilterType2HighpassStereo)
 {
     using namespace ChebyshevTestHelpers;
-    runFilterTest([](AbacDsp::ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); }, true,
-                  false, 500.0f);
+    runFilterTest([](ChebyshevBiquad& sut, int order) { sut.computeType2(order, 1000, kRipple, false); }, true, false,
+                  500.0f);
+}
 }

@@ -4,24 +4,16 @@
 #include "Audio/AudioBuffer.h"
 
 #include <array>
-
-class AudioBufferTest : public ::testing::Test
+namespace AbacDsp::Test
 {
-  protected:
-    void SetUp() override {}
-    void TearDown() override {}
-};
-
-TEST_F(AudioBufferTest, ConstructorAndSize)
+TEST(AudioBufferTest, ConstructorAndSize)
 {
     constexpr AudioBuffer<2, 100> sut;
     EXPECT_EQ(sut.numFrames(), 100);
     EXPECT_EQ(sut.numChannels(), 2);
 }
 
-// Remove Resize test as it's no longer applicable
-
-TEST_F(AudioBufferTest, DataAccess)
+TEST(AudioBufferTest, DataAccess)
 {
     AudioBuffer<2, 100> sut;
     sut(50, 0) = 0.5f;
@@ -30,7 +22,7 @@ TEST_F(AudioBufferTest, DataAccess)
     EXPECT_FLOAT_EQ(sut(50, 1), -0.5f);
 }
 
-TEST_F(AudioBufferTest, FrameIterator)
+TEST(AudioBufferTest, FrameIterator)
 {
     AudioBuffer<2, 100> sut;
     sut(0, 0) = 1.0f;
@@ -47,7 +39,7 @@ TEST_F(AudioBufferTest, FrameIterator)
     EXPECT_FLOAT_EQ((*it)[1], -0.5f);
 }
 
-TEST_F(AudioBufferTest, Mux)
+TEST(AudioBufferTest, Mux)
 {
     AudioBuffer<2, 3> sut;
     std::array left = {1.0f, 2.0f, 3.0f};
@@ -63,7 +55,7 @@ TEST_F(AudioBufferTest, Mux)
     EXPECT_FLOAT_EQ(sut(2, 1), -3.0f);
 }
 
-TEST_F(AudioBufferTest, Demux)
+TEST(AudioBufferTest, Demux)
 {
     AudioBuffer<2, 3> sut;
     sut(0, 0) = 1.0f;
@@ -84,7 +76,7 @@ TEST_F(AudioBufferTest, Demux)
     EXPECT_FLOAT_EQ(right[2], -3.0f);
 }
 
-TEST_F(AudioBufferTest, MuxDemuxConsistency)
+TEST(AudioBufferTest, MuxDemuxConsistency)
 {
     AudioBuffer<2, 100> sut;
     std::array<float, 100> originalLeft{}, originalRight{};
@@ -103,7 +95,7 @@ TEST_F(AudioBufferTest, MuxDemuxConsistency)
     EXPECT_EQ(originalRight, resultRight);
 }
 
-TEST_F(AudioBufferTest, ConstIterator)
+TEST(AudioBufferTest, ConstIterator)
 {
     constexpr AudioBuffer<2, 100> sut;
     auto it = sut.cbegin();
@@ -112,7 +104,7 @@ TEST_F(AudioBufferTest, ConstIterator)
     EXPECT_EQ(std::distance(it, end), 100);
 }
 
-TEST_F(AudioBufferTest, DifferentChannelCounts)
+TEST(AudioBufferTest, DifferentChannelCounts)
 {
     constexpr AudioBuffer<1, 50> mono;
     constexpr AudioBuffer<4, 25> quad;
@@ -127,7 +119,7 @@ TEST_F(AudioBufferTest, DifferentChannelCounts)
     EXPECT_EQ(surround.numFrames(), 10);
 }
 
-TEST_F(AudioBufferTest, MuxThrowsOnSizeMismatch)
+TEST(AudioBufferTest, MuxThrowsOnSizeMismatch)
 {
     AudioBuffer<2, 100> sut{};
     std::array<float, 99> left{};
@@ -135,10 +127,11 @@ TEST_F(AudioBufferTest, MuxThrowsOnSizeMismatch)
     EXPECT_THROW(sut.mux({left, right}), std::invalid_argument);
 }
 
-TEST_F(AudioBufferTest, DemuxThrowsOnSizeMismatch)
+TEST(AudioBufferTest, DemuxThrowsOnSizeMismatch)
 {
     constexpr AudioBuffer<2, 100> sut{};
     std::array<float, 99> left{};
     std::array<float, 100> right{};
     EXPECT_THROW(sut.demux({left, right}), std::invalid_argument);
+}
 }

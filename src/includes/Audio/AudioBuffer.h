@@ -3,7 +3,8 @@
 #include <array>
 #include <span>
 #include <stdexcept>
-
+namespace AbacDsp
+{
 template <size_t Channels, size_t NumFrames>
 class AudioBuffer
 {
@@ -232,3 +233,4 @@ using QuadAudioBuffer = AudioBuffer<4, NumFrames>;
 
 template <size_t NumFrames>
 using CH51AudioBuffer = AudioBuffer<6, NumFrames>;
+}

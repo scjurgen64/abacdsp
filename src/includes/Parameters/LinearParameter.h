@@ -4,6 +4,8 @@
 #include <cmath>
 #include <string>
 
+namespace AbacDsp
+{
 template <size_t BlockSize>
 class LinearSmoothingParameter
 {
@@ -175,3 +177,4 @@ class LinearParameter
         m_step = std::abs(m_max - m_min) / (m_transitionTime * m_sampleRate);
     }
 };
+}

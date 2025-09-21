@@ -56,6 +56,7 @@ static T frequencyToNote(const T f, const T orchestraTuning = 440.f)
 {
     return std::log(f / orchestraTuning) / std::log(static_cast<T>(2.0)) * static_cast<T>(12) + static_cast<T>(69);
 }
+
 template <std::floating_point T>
 static T noteToFrequency(const T note, const T orchestraTuning = 440.f)
 {

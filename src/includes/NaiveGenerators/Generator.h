@@ -8,7 +8,7 @@
 #include <vector>
 #include "Filters/OnePoleFilter.h"
 
-namespace NaiveDsp
+namespace AbacDsp
 {
 enum class Wave
 {
@@ -41,7 +41,7 @@ class Generator
     {
         if constexpr (Style == Wave::Sine)
         {
-            float v = std::sinf(m_phase * 2.0f * std::numbers::pi_v<float>);
+            float v = std::sin(m_phase * 2.0f * std::numbers::pi_v<float>);
             advancePhase();
             return v;
         }

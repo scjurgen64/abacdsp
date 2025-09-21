@@ -7,8 +7,6 @@ project(${PROJECT_NAME} VERSION ${CURRENT_VERSION})
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wno-dev")
-#set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_compile_options(-Wall -Wextra)
 
@@ -24,11 +22,22 @@ include_directories(3rdparty/AudioFile)
 add_executable(${PROJECT_NAME} main.cpp)
 
 add_subdirectory(3rdparty)
+
 option(PACKAGE_TESTS "Build the tests" ON)
 if(PACKAGE_TESTS)
     enable_testing()
 
+    # Include CTest to generate DartConfiguration.tcl
+    include(CTest)
+
+    # Configure Valgrind for memory checking
+    find_program(VALGRIND_PROGRAM NAMES valgrind)
+    if(VALGRIND_PROGRAM)
+        set(MEMORYCHECK_COMMAND ${VALGRIND_PROGRAM})
+        set(MEMORYCHECK_COMMAND_OPTIONS
+                "--leak-check=full --show-leak-kinds=all --fair-sched=yes --error-exitcode=1 --track-origins=yes --trace-children=yes")
+        set(MEMORYCHECK_SUPPRESSIONS_FILE "${CMAKE_SOURCE_DIR}/valgrind.supp")
+    endif()
+
     add_subdirectory(test)
 endif()
-
-

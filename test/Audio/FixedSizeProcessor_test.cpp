@@ -4,15 +4,16 @@
 #include "Audio/FixedSizeProcessor.h"
 
 #include <vector>
-
+namespace AbacDsp::Test
+{
 template <typename T>
 class MockAudioBuffer
 {
-public:
+  public:
     MockAudioBuffer(size_t numChannels, size_t numSamples)
         : m_numChannels(numChannels)
-          , m_numSamples(numSamples)
-          , m_data(numChannels * numSamples)
+        , m_numSamples(numSamples)
+        , m_data(numChannels * numSamples)
     {
     }
 
@@ -41,25 +42,14 @@ public:
         return m_data.data();
     }
 
-private:
+  private:
     size_t m_numChannels;
     size_t m_numSamples;
     std::vector<T> m_data;
 };
 
-class FixedSizeProcessorTest : public ::testing::Test
-{
-protected:
-    void SetUp() override
-    {
-    }
 
-    void TearDown() override
-    {
-    }
-};
-
-TEST_F(FixedSizeProcessorTest, HandlesPartialBigBlock)
+TEST(FixedSizeProcessorTest, HandlesPartialBigBlock)
 {
     constexpr size_t NumChannels{1};
     constexpr size_t NumFixFrames{3};
@@ -137,7 +127,7 @@ TEST_F(FixedSizeProcessorTest, HandlesPartialBigBlock)
     }
 }
 
-TEST_F(FixedSizeProcessorTest, ProcessesCorrectly)
+TEST(FixedSizeProcessorTest, ProcessesCorrectly)
 {
     constexpr size_t NumChannels{2};
     constexpr size_t NumFixFrames{16};
@@ -173,9 +163,10 @@ TEST_F(FixedSizeProcessorTest, ProcessesCorrectly)
         auto* channelData = buffer.getReadPointer(channel);
         for (size_t sample = 0; sample < buffer.getNumSamples() - NumFixFrames; ++sample)
         {
-            const float expectedValue = static_cast<float>(sample + 1) / static_cast<float>(buffer.getNumSamples()) *
-                                        gain;
+            const float expectedValue =
+                static_cast<float>(sample + 1) / static_cast<float>(buffer.getNumSamples()) * gain;
             EXPECT_NEAR(channelData[sample + NumFixFrames], expectedValue, 1e-6f);
         }
     }
+}
 }

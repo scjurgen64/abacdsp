@@ -6,7 +6,8 @@
 #include <vector>
 
 #include "Analysis/FftSmall.h"
-
+namespace AbacDsp
+{
 class MelSpectroGram
 {
   public:
@@ -496,3 +497,4 @@ class FloatingHorizonFFTImage : public SpectrogramBase
     std::vector<float> m_horizon;
     std::vector<float> m_image;
 };
+}

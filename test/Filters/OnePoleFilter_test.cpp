@@ -8,7 +8,8 @@
 #include <cmath>
 
 #include "NaiveGenerators/Generator.h"
-
+namespace AbacDsp::Test
+{
 template <AbacDsp::OnePoleFilterCharacteristic Characteristic>
 void testFilterMagnitude(float sampleRate)
 {
@@ -24,7 +25,7 @@ void testFilterMagnitude(float sampleRate)
             AbacDsp::OnePoleFilter<Characteristic, false> sut{sampleRate};
             sut.setCutoff(static_cast<float>(cf));
             std::vector<float> wave(4000);
-            NaiveDsp::Generator<NaiveDsp::Wave::Sine> sineWave{sampleRate, hz};
+            Generator<Wave::Sine> sineWave{sampleRate, hz};
             sineWave.render(wave.begin(), wave.end());
             sut.processBlock(wave.data(), wave.data(), wave.size());
 
@@ -129,3 +130,4 @@ TEST(DspOnePoleFilterTest, AllPassMatchTheoreticalMagnitudes)
 //         EXPECT_LT(input[i + 1], 0.0f);
 //     }
 // }
+}

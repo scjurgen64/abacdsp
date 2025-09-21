@@ -18,5 +18,11 @@ class FileOut
         af.setBitDepth(24);
         return af;
     }
+
+    static void saveAs(const std::string& filename, std::span<const float> data)
+    {
+        auto af = ToAudioFile(data);
+        af.save(filename);
+    }
 };
 }
