@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EffectBase.h"
-#include "Analysis/Spectrogram.h"
 #include "Audio/AudioBuffer.h"
+#include "Delays/NaiveDelay.h"
 
 #include <cassert>
 #include <cstdint>
@@ -13,8 +13,10 @@ template <size_t BlockSize>
 class DelayImpl final : public EffectBase
 {
   public:
+    using Delay = AbacDsp::NaiveDelay<48000>;
     DelayImpl(const float sampleRate)
         : EffectBase(sampleRate)
+        , m_delay{Delay(sampleRate), Delay(sampleRate)}
     {
         m_visualWavedata.resize(6000);
     }
@@ -27,8 +29,8 @@ class DelayImpl final : public EffectBase
     {
         for (size_t i = 0; i < BlockSize; ++i)
         {
-            out(i, 0) = in(i, 0);
-            out(i, 1) = in(i, 1);
+            out(i, 0) = m_delay[0].step(in(i, 0)) + in(i, 0);
+            out(i, 1) = m_delay[1].step(in(i, 1)) + in(i, 1);
         }
 
         m_visualWavedata[m_currentSample] = out(0, 0) * 0.5f;
@@ -47,7 +49,7 @@ class DelayImpl final : public EffectBase
 
   private:
     float m_gain{};
-
+    std::array<AbacDsp::NaiveDelay<48000>, 2> m_delay;
     std::vector<float> m_visualWavedata;
     std::vector<float> m_preparedWavedata;
     size_t m_currentSample = 0;

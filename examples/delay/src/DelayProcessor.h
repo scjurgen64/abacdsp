@@ -22,13 +22,8 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     static constexpr size_t NumSamplesPerBlock = 16;
     AudioPluginAudioProcessor()
         : AudioProcessor(BusesProperties()
-#if !JucePlugin_IsMidiEffect
-#if !JucePlugin_IsSynth
                              .withInput("Input", juce::AudioChannelSet::stereo(), true)
-#endif
-                             .withOutput("Output", juce::AudioChannelSet::stereo(), true)
-#endif
-                             )
+                             .withOutput("Output", juce::AudioChannelSet::stereo(), true))
         , fixedRunner([this](const AbacDsp::AudioBuffer<2, NumSamplesPerBlock>& input,
                              AbacDsp::AudioBuffer<2, NumSamplesPerBlock>& output)
                       { pluginRunner->processBlock(input, output); })
