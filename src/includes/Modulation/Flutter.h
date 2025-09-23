@@ -3,7 +3,7 @@
 #include <array>
 #include <numbers>
 #include <cmath>
-#include "DSP/SmoothingParameter.h"
+#include "Parameters/SmoothingParameter.h"
 
 namespace AbacDsp
 {
@@ -13,30 +13,34 @@ class FlutterLfo
   public:
     explicit FlutterLfo(const float sampleRate, const float frequencyMultiplier, const float amplitude,
                         const float phaseOffset)
-        : m_frequencyMultiplier(frequencyMultiplier / sampleRate)
+        : m_frequencyMultiplier(std::abs(frequencyMultiplier / sampleRate))
         , m_amplitude(amplitude)
         , m_phase(phaseOffset)
     {
+        while (m_phase < -1)
+        {
+            m_phase += 2.0f;
+        }
+        while (m_phase > 1)
+        {
+            m_phase -= 2.0f;
+        }
+        m_initialPhase = m_phase;
     }
 
     void reset() noexcept
     {
-        m_phase = 0.0f;
+        m_phase = m_initialPhase;
     }
 
     float step(const float baseFrequency) noexcept
     {
-        const auto angleDelta = std::numbers::pi_v<float> * 2.0f * baseFrequency * m_frequencyMultiplier;
+        const auto angleDelta = 2.0f * std::abs(baseFrequency) * m_frequencyMultiplier;
         m_phase += angleDelta;
 
-        constexpr float pi = std::numbers::pi_v<float>;
-        while (m_phase > pi)
+        while (m_phase >= 1)
         {
-            m_phase -= 2.0f * pi;
-        }
-        while (m_phase < -pi)
-        {
-            m_phase += 2.0f * pi;
+            m_phase -= 2.0f;
         }
         return m_amplitude * qcos(m_phase);
     }
@@ -45,12 +49,14 @@ class FlutterLfo
     // the error respect to std::cos is ok when used for lfo stuff
     static float qcos(const float x) noexcept
     {
-        const float xp = x / std::numbers::pi_v<float>;
+        constexpr float piInv = 1 / std::numbers::pi_v<float>;
+        const float xp = x;
         return 1 - 6 * xp * xp + 4 * std::abs(xp * xp * xp);
     }
     float m_frequencyMultiplier;
     float m_amplitude;
-    float m_phase;
+    float m_phase{0};
+    float m_initialPhase{0};
 };
 
 class Flutter
@@ -59,8 +65,8 @@ class Flutter
     explicit Flutter(const float sampleRate)
         : m_sampleRate(sampleRate)
         , m_lfos({FlutterLfo(sampleRate, 1.0f, 1.0f, 0.0f),
-                  FlutterLfo(sampleRate, 2.0f, 0.3f, 13.0f * std::numbers::pi_v<float> / 4.0f),
-                  FlutterLfo(sampleRate, 3.0f, 0.2f, -std::numbers::pi_v<float> / 10.0f)})
+                  FlutterLfo(sampleRate, 2.0f, 0.3f, 13.0f / 4.0f),
+                  FlutterLfo(sampleRate, 3.0f, 0.2f, -1.f / 10.0f)})
     {
         m_rateSmoothed.newTransition(0.3f, defaultSmoothingTime, m_sampleRate, true);
         m_depthSmoothed.newTransition(0.0f, defaultSmoothingTime, m_sampleRate, true);

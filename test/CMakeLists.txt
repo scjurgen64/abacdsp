@@ -3,6 +3,28 @@ cmake_minimum_required(VERSION 3.21)
 set(CMAKE_CXX_STANDARD 20)
 include(GoogleTest)
 
+# Create static library from implementation files
+file(GLOB_RECURSE LIB_SOURCES
+        CONFIGURE_DEPENDS
+        "${PROJECT_SOURCE_DIR}/src/includes/**/*.cpp")
+
+# Only create library if we have implementation files
+if (LIB_SOURCES)
+    add_library(audio_dsp_lib STATIC ${LIB_SOURCES})
+    target_include_directories(audio_dsp_lib PUBLIC "${PROJECT_SOURCE_DIR}/src/includes")
+
+    # Set C++20 standard for the library
+    target_compile_features(audio_dsp_lib PUBLIC cxx_std_20)
+
+    message(STATUS "Created audio_dsp_lib with ${CMAKE_MATCH_COUNT} source files")
+    foreach (source ${LIB_SOURCES})
+        message(STATUS "  - ${source}")
+    endforeach ()
+else ()
+    message(STATUS "No implementation files found, library will be header-only")
+endif ()
+
+# Updated macro that links against the library
 macro(package_add_test TESTNAME)
     if (${ARGC} EQUAL 2)
         # Check if the argument is a directory
@@ -26,15 +48,21 @@ macro(package_add_test TESTNAME)
     endif ()
 
     add_executable(${TESTNAME} ${SOURCE_FILES})
-    target_link_libraries(${TESTNAME} gtest gmock gtest_main)
+
+    # Link against our library if it exists, otherwise just include directories
+    if (TARGET audio_dsp_lib)
+        target_link_libraries(${TESTNAME} audio_dsp_lib gtest gmock gtest_main)
+    else ()
+        target_link_libraries(${TESTNAME} gtest gmock gtest_main)
+        target_include_directories(${TESTNAME} PRIVATE "${PROJECT_SOURCE_DIR}/src/includes")
+    endif ()
+
     add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
-    #    gtest_discover_tests(${TESTNAME}
-    #            WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-    #            PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_DIR}")
     set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
 
-# Rest of your configuration remains the same
+# Keep the old include_directories for backward compatibility if needed
+# This is now redundant if you're using the library, but doesn't hurt
 include_directories("${PROJECT_SOURCE_DIR}/src/includes")
 
 mark_as_advanced(
