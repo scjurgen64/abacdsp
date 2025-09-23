@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(PROJECT_NAME "Delay")
+set(PROJECT_NAME "MiniReverb")
 set(FORMATS AU VST3 AUv3 Standalone)
 
 # Check if we're building as part of main project or standalone
@@ -33,7 +33,7 @@ juce_add_plugin("${PROJECT_NAME}"
         COMPANY_NAME "krachpedale"
         COMPANY_WEBSITE "https://krachpedale.de"
         COMPANY_EMAIL "info@krachpedale.de"
-        BUNDLE_ID de.krachpedale.delay
+        BUNDLE_ID de.krachpedale.minireverb
         IS_SYNTH FALSE
         NEEDS_MIDI_INPUT FALSE
         NEEDS_MIDI_OUTPUT FALSE
@@ -41,7 +41,7 @@ juce_add_plugin("${PROJECT_NAME}"
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE KrPd
-        PLUGIN_CODE DE16
+        PLUGIN_CODE MR16
         FORMATS "${FORMATS}"
         PRODUCT_NAME "${PROJECT_NAME}")
 
@@ -66,8 +66,8 @@ set_target_properties("${PROJECT_NAME}" PROPERTIES FOLDER "")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "" FILES ${SourceFiles})
 
 # Use unique binary data target name to avoid conflicts
-juce_add_binary_data(DelayAssets SOURCES logo.png)
-set_target_properties(DelayAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+juce_add_binary_data(MiniReverbAssets SOURCES logo.png)
+set_target_properties(MiniReverbAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 # Set folder properties for all formats
 foreach (target ${FORMATS} "All")
@@ -78,7 +78,7 @@ foreach (target ${FORMATS} "All")
                 XCODE_GENERATE_SCHEME ON)
     endif ()
 endforeach ()
-set_target_properties(DelayAssets PROPERTIES FOLDER "Targets")
+set_target_properties(MiniReverbAssets PROPERTIES FOLDER "Targets")
 
 set(JUCE_DEPENDENCIES
         juce::juce_audio_utils
@@ -94,7 +94,7 @@ target_compile_definitions("${PROJECT_NAME}"
 
 target_link_libraries("${PROJECT_NAME}"
         PRIVATE
-        DelayAssets
+        MiniReverbAssets
         ${JUCE_DEPENDENCIES}
         PUBLIC
         juce::juce_recommended_config_flags

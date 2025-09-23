@@ -34,7 +34,7 @@ function runOnDocker() {
     docker run -d -it --name abacdsp -v "$(pwd)"/..:/root/project "$DOCKER_IMAGE" bash
     docker ps -a
     docker exec -it abacdsp /root/project/docker-unit-tests/build-tests.sh
-    docker exec -it abacdsp /root/project/docker-unit-tests/run_unit_tests.sh
+    docker exec -it abacdsp /root/project/docker-unit-tests/run-tests.sh
 }
 
 runOnDocker

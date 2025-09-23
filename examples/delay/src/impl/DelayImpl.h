@@ -10,10 +10,10 @@
 #include <functional>
 
 template <size_t BlockSize>
-class GenericImpl final : public EffectBase
+class DelayImpl final : public EffectBase
 {
   public:
-    GenericImpl(const float sampleRate)
+    DelayImpl(const float sampleRate)
         : EffectBase(sampleRate)
     {
         m_visualWavedata.resize(6000);
@@ -47,7 +47,6 @@ class GenericImpl final : public EffectBase
 
   private:
     float m_gain{};
-
 
     std::vector<float> m_visualWavedata;
     std::vector<float> m_preparedWavedata;
