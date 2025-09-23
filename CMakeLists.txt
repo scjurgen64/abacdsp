@@ -31,6 +31,7 @@ if (NOT BUILD_ONLY_TESTS)
     # EXAMPLES - only when building full project
     add_subdirectory(examples/delay)
     add_subdirectory(examples/minireverb)
+    add_subdirectory(examples/drumsynth)
 else ()
     # For tests-only builds, just include DSP headers
     include_directories(src/includes)
