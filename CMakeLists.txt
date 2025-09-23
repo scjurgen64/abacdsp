@@ -41,3 +41,10 @@ if(PACKAGE_TESTS)
 
     add_subdirectory(test)
 endif()
+
+# EXAMPLES
+
+add_subdirectory(examples/delay)
+#add_subdirectory(examples/reverb)
+#add_subdirectory(examples/synth)
+#add_subdirectory(examples/sampler)
