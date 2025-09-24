@@ -20,6 +20,11 @@ class NaiveDelay
     void setSize(const size_t newSize)
     {
         m_currentDelayWidth = newSize;
+        m_read = m_head - m_currentDelayWidth + MAXSIZE - 1;
+        while (m_read >= m_buffer.size())
+        {
+            m_read -= m_buffer.size();
+        }
     }
 
     float step(const float in)
