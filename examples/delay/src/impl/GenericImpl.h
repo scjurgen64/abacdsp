@@ -1,8 +1,8 @@
 #pragma once
 
 #include "EffectBase.h"
+#include "Analysis/Spectrogram.h"
 #include "Audio/AudioBuffer.h"
-#include "Delays/NaiveDelay.h"
 
 #include <cassert>
 #include <cstdint>
@@ -10,13 +10,11 @@
 #include <functional>
 
 template <size_t BlockSize>
-class DelayImpl final : public EffectBase
+class GenericImpl final : public EffectBase
 {
   public:
-    using Delay = AbacDsp::NaiveDelay<48000>;
-    DelayImpl(const float sampleRate)
+    GenericImpl(const float sampleRate)
         : EffectBase(sampleRate)
-        , m_delay{Delay(sampleRate), Delay(sampleRate)}
     {
         m_visualWavedata.resize(6000);
     }
@@ -24,27 +22,29 @@ class DelayImpl final : public EffectBase
     {
         m_gain = std::pow(10.f, value / 20.f);
     }
-
     void setDry(const float value)
     {
-        // m_dry = std::pow(10.f, value / 20.f);
+        m_dry = std::pow(10.f, value / 20.f);
     }
-
-    void setFeedback(const float value) {}
-
-    void setTimeInMs(const float value) {}
-
     void setWet(const float value)
     {
-        // m_wet = std::pow(10.f, value / 20.f);
+        m_wet = std::pow(10.f, value / 20.f);
+    }
+    void setTimeInMs(const float value)
+    {
+        m_timeInMs = value;
+    }
+    void setFeedback(const float value)
+    {
+        m_feedback = value;
     }
 
     void processBlock(const AbacDsp::AudioBuffer<2, BlockSize>& in, AbacDsp::AudioBuffer<2, BlockSize>& out)
     {
         for (size_t i = 0; i < BlockSize; ++i)
         {
-            out(i, 0) = m_delay[0].step(in(i, 0)) + in(i, 0);
-            out(i, 1) = m_delay[1].step(in(i, 1)) + in(i, 1);
+            out(i, 0) = in(i, 0);
+            out(i, 1) = in(i, 1);
         }
 
         m_visualWavedata[m_currentSample] = out(0, 0) * 0.5f;
@@ -63,7 +63,12 @@ class DelayImpl final : public EffectBase
 
   private:
     float m_gain{};
-    std::array<AbacDsp::NaiveDelay<48000>, 2> m_delay;
+    float m_dry{};
+    float m_wet{};
+    float m_timeInMs{};
+    float m_feedback{};
+
+
     std::vector<float> m_visualWavedata;
     std::vector<float> m_preparedWavedata;
     size_t m_currentSample = 0;

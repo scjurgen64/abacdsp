@@ -22,8 +22,13 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     static constexpr size_t NumSamplesPerBlock = 16;
     AudioPluginAudioProcessor()
         : AudioProcessor(BusesProperties()
+#if !JucePlugin_IsMidiEffect
+#if !JucePlugin_IsSynth
                              .withInput("Input", juce::AudioChannelSet::stereo(), true)
-                             .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+#endif
+                             .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+#endif
+                             )
         , fixedRunner([this](const AbacDsp::AudioBuffer<2, NumSamplesPerBlock>& input,
                              AbacDsp::AudioBuffer<2, NumSamplesPerBlock>& output)
                       { pluginRunner->processBlock(input, output); })
@@ -36,6 +41,10 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         , m_spectrogram{}
     {
         m_parameters.addParameterListener("gain", this);
+        m_parameters.addParameterListener("dry", this);
+        m_parameters.addParameterListener("wet", this);
+        m_parameters.addParameterListener("timeInMs", this);
+        m_parameters.addParameterListener("feedback", this);
     }
     ~AudioPluginAudioProcessor() override = default;
 
@@ -204,6 +213,22 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::ParameterID("gain", 1), "Gain", juce::NormalisableRange<float>(-60, 60, 0.1, 1, false), 0,
             juce::String("Gain"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("dry", 1), "Dry", juce::NormalisableRange<float>(-100, 12, 0.1, 1, false), 0,
+            juce::String("Dry"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("wet", 1), "Wet", juce::NormalisableRange<float>(-100, 12, 0.1, 1, false), 0,
+            juce::String("Wet"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("timeInMs", 1), "Time", juce::NormalisableRange<float>(1, 10000, 1, 0.2, false), 0,
+            juce::String("Time"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " ms"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("feedback", 1), "Feedback", juce::NormalisableRange<float>(1, 100, 1, 1, false), 0,
+            juce::String("Feedback"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " %"; }));
 
         return {params.begin(), params.end()};
     }
@@ -217,6 +242,10 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         }
         static const std::map<juce::String, std::function<void(AudioPluginAudioProcessor&, float)>> parameterMap{
             {"gain", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setGain(v); }},
+            {"dry", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setDry(v); }},
+            {"wet", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setWet(v); }},
+            {"timeInMs", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setTimeInMs(v); }},
+            {"feedback", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setFeedback(v); }},
 
         };
         if (auto it = parameterMap.find(parameterID); it != parameterMap.end())
