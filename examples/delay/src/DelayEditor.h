@@ -46,7 +46,7 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         // const juce::FlexItem::Margin knobMargin = juce::FlexItem::Margin(Constants::Margins::small);
         const juce::FlexItem::Margin knobMarginSmall = juce::FlexItem::Margin(Constants::Margins::medium);
         std::vector<juce::Rectangle<int>> areas(3);
-        const auto colWidth = area.getWidth() / 15;
+        const auto colWidth = area.getWidth() / 7;
         areas[0] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
         areas[1] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
         areas[2] = area.reduced(Constants::Margins::small);
