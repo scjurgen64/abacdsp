@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Numbers/Interpolation.h"
-
+#include "Audio/FixedSizeProcessor.h"
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -186,7 +186,7 @@ class ModulatingDelayPitchedAdjust
     size_t m_headWrite{0};
     float m_decayMsecs{100};
     // adapt soft buffersize *speed up/down*
-    size_t m_currentDistance{MaxSizeInSamples / 2};
+    size_t m_currentDistance{MaxSizeInSamples / 10};
     size_t m_newDistance{0};
     size_t m_lastDistanceRequested{0};
     bool m_advanceSteps{false};

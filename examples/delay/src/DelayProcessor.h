@@ -45,6 +45,11 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         m_parameters.addParameterListener("wet", this);
         m_parameters.addParameterListener("timeInMs", this);
         m_parameters.addParameterListener("feedback", this);
+        m_parameters.addParameterListener("lowPass", this);
+        m_parameters.addParameterListener("highPass", this);
+        m_parameters.addParameterListener("allPass", this);
+        m_parameters.addParameterListener("modDepth", this);
+        m_parameters.addParameterListener("modSpeed", this);
     }
     ~AudioPluginAudioProcessor() override = default;
 
@@ -222,13 +227,37 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::String("Wet"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("timeInMs", 1), "Time", juce::NormalisableRange<float>(1, 10000, 1, 0.2, false), 0,
+            juce::ParameterID("timeInMs", 1), "Time", juce::NormalisableRange<float>(1, 10000, 0.1, 0.3, false), 0,
             juce::String("Time"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " ms"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("feedback", 1), "Feedback", juce::NormalisableRange<float>(1, 100, 1, 1, false), 0,
+            juce::ParameterID("feedback", 1), "Feedback", juce::NormalisableRange<float>(-100, 100, 0.1, 1, false), 0,
             juce::String("Feedback"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " %"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("lowPass", 1), "Low pass cutoff",
+            juce::NormalisableRange<float>(100, 20000, 1, 0.3, false), 12000, juce::String("Low pass cutoff"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("highPass", 1), "High pass cutoff",
+            juce::NormalisableRange<float>(100, 20000, 1, 0.3, false), 50, juce::String("High pass cutoff"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("allPass", 1), "All pass cutoff",
+            juce::NormalisableRange<float>(100, 20000, 1, 0.3, false), 1500, juce::String("All pass cutoff"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("modDepth", 1), "Modulation depth", juce::NormalisableRange<float>(0, 100, 0.1, 1, false),
+            0, juce::String("Modulation depth"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " %"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("modSpeed", 1), "Modulation speed",
+            juce::NormalisableRange<float>(0.05, 20, 0.1, 0.3, false), 0.25, juce::String("Modulation speed"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " Hz"; }));
 
         return {params.begin(), params.end()};
     }
@@ -246,6 +275,11 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             {"wet", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setWet(v); }},
             {"timeInMs", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setTimeInMs(v); }},
             {"feedback", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setFeedback(v); }},
+            {"lowPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setLowPass(v); }},
+            {"highPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setHighPass(v); }},
+            {"allPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setAllPass(v); }},
+            {"modDepth", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModDepth(v); }},
+            {"modSpeed", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModSpeed(v); }},
 
         };
         if (auto it = parameterMap.find(parameterID); it != parameterMap.end())

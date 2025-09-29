@@ -38,6 +38,26 @@ class GenericImpl final : public EffectBase
     {
         m_feedback = value;
     }
+    void setLowPass(const float value)
+    {
+        m_lowPass = value;
+    }
+    void setHighPass(const float value)
+    {
+        m_highPass = value;
+    }
+    void setAllPass(const float value)
+    {
+        m_allPass = value;
+    }
+    void setModDepth(const float value)
+    {
+        m_modDepth = value;
+    }
+    void setModSpeed(const float value)
+    {
+        m_modSpeed = value;
+    }
 
     void processBlock(const AbacDsp::AudioBuffer<2, BlockSize>& in, AbacDsp::AudioBuffer<2, BlockSize>& out)
     {
@@ -67,6 +87,11 @@ class GenericImpl final : public EffectBase
     float m_wet{};
     float m_timeInMs{};
     float m_feedback{};
+    float m_lowPass{};
+    float m_highPass{};
+    float m_allPass{};
+    float m_modDepth{};
+    float m_modSpeed{};
 
 
     std::vector<float> m_visualWavedata;

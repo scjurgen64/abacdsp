@@ -19,7 +19,7 @@ class NaiveDelay
 
     void setSize(const size_t newSize)
     {
-        m_currentDelayWidth = newSize;
+        m_currentDelayWidth = std::min(newSize, MAXSIZE - 2);
         m_read = m_head - m_currentDelayWidth + MAXSIZE - 1;
         while (m_read >= m_buffer.size())
         {

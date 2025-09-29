@@ -45,11 +45,12 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         // auto generated
         // const juce::FlexItem::Margin knobMargin = juce::FlexItem::Margin(Constants::Margins::small);
         const juce::FlexItem::Margin knobMarginSmall = juce::FlexItem::Margin(Constants::Margins::medium);
-        std::vector<juce::Rectangle<int>> areas(3);
-        const auto colWidth = area.getWidth() / 7;
+        std::vector<juce::Rectangle<int>> areas(4);
+        const auto colWidth = area.getWidth() / 8;
         areas[0] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
         areas[1] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
-        areas[2] = area.reduced(Constants::Margins::small);
+        areas[2] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
+        areas[3] = area.reduced(Constants::Margins::small);
 
         {
             juce::FlexBox box;
@@ -70,7 +71,19 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
             box.items.add(juce::FlexItem(timeInMsDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(feedbackDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(lowPassDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(highPassDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(allPassDial).withFlex(1).withMargin(knobMarginSmall));
             box.performLayout(areas[1].toFloat());
+        }
+        {
+            juce::FlexBox box;
+            box.flexWrap = juce::FlexBox::Wrap::noWrap;
+            box.flexDirection = juce::FlexBox::Direction::column;
+            box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
+            box.items.add(juce::FlexItem(modDepthDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(modSpeedDial).withFlex(1).withMargin(knobMarginSmall));
+            box.performLayout(areas[2].toFloat());
         }
         {
             juce::FlexBox box;
@@ -79,7 +92,7 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
             box.items.add(juce::FlexItem(spectrogramGauge).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(signalGauge).withFlex(1).withMargin(knobMarginSmall));
-            box.performLayout(areas[2].toFloat());
+            box.performLayout(areas[3].toFloat());
         }
     }
 #pragma GCC diagnostic pop
@@ -109,6 +122,21 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         addAndMakeVisible(feedbackDial);
         feedbackDial.reset(valueTreeState, "feedback");
         feedbackDial.setLabelText(juce::String::fromUTF8("Feedback"));
+        addAndMakeVisible(lowPassDial);
+        lowPassDial.reset(valueTreeState, "lowPass");
+        lowPassDial.setLabelText(juce::String::fromUTF8("Low pass cutoff"));
+        addAndMakeVisible(highPassDial);
+        highPassDial.reset(valueTreeState, "highPass");
+        highPassDial.setLabelText(juce::String::fromUTF8("High pass cutoff"));
+        addAndMakeVisible(allPassDial);
+        allPassDial.reset(valueTreeState, "allPass");
+        allPassDial.setLabelText(juce::String::fromUTF8("All pass cutoff"));
+        addAndMakeVisible(modDepthDial);
+        modDepthDial.reset(valueTreeState, "modDepth");
+        modDepthDial.setLabelText(juce::String::fromUTF8("Modulation depth"));
+        addAndMakeVisible(modSpeedDial);
+        modSpeedDial.reset(valueTreeState, "modSpeed");
+        modSpeedDial.setLabelText(juce::String::fromUTF8("Modulation speed"));
         addAndMakeVisible(cpuGauge);
         cpuGauge.setLabelText(juce::String::fromUTF8("CPU"));
         addAndMakeVisible(levelGauge);
@@ -130,6 +158,11 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     CustomRotaryDial wetDial{this};
     CustomRotaryDial timeInMsDial{this};
     CustomRotaryDial feedbackDial{this};
+    CustomRotaryDial lowPassDial{this};
+    CustomRotaryDial highPassDial{this};
+    CustomRotaryDial allPassDial{this};
+    CustomRotaryDial modDepthDial{this};
+    CustomRotaryDial modSpeedDial{this};
     CpuGauge cpuGauge{};
     Gauge levelGauge{};
     SpectrogramDisplay spectrogramGauge{};
