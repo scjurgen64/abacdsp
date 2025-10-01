@@ -3,7 +3,7 @@
 #include "EffectBase.h"
 #include "Analysis/Spectrogram.h"
 #include "Audio/AudioBuffer.h"
-
+#include "Reverbs/FdnReverb.h"
 #include <cassert>
 #include <cstdint>
 #include <cmath>
@@ -15,12 +15,17 @@ class MiniReverbImpl final : public EffectBase
   public:
     MiniReverbImpl(const float sampleRate)
         : EffectBase(sampleRate)
+        , m_fdnTank{sampleRate}
     {
     }
+
     void setOrder(const size_t value)
     {
+        std::vector<size_t> orderMap{4, 8, 12, 16, 20, 24, 32};
         m_order = value;
+        m_fdnTank.setOrder(orderMap[value]);
     }
+
     void setDry(const float value)
     {
         m_dry = std::pow(10.f, value / 20.f);
@@ -32,30 +37,40 @@ class MiniReverbImpl final : public EffectBase
     void setLowSize(const float value)
     {
         m_lowSize = value;
+        m_fdnTank.setMinSize(value);
     }
     void setHighSize(const float value)
     {
         m_highSize = value;
+        m_fdnTank.setMaxSize(value);
     }
     void setUniqueDelay(const bool value)
     {
         m_uniqueDelay = value;
+        m_fdnTank.setUniqueDelay(value);
     }
+
     void setBulge(const float value)
     {
         m_bulge = value;
+        m_fdnTank.setSpreadBulge(value);
     }
+
     void setDecay(const float value)
     {
         m_decay = value;
+        m_fdnTank.setDecay(value);
     }
+
     void setAllPassUp(const float value)
     {
         m_allPassUp = value;
+        m_fdnTank.setAllpassFirstCutoff(value);
     }
     void setAllPassDown(const float value)
     {
         m_allPassDown = value;
+        m_fdnTank.setAllpassLastCutoff(value);
     }
     void setAllPassCount(const size_t value)
     {
@@ -84,10 +99,24 @@ class MiniReverbImpl final : public EffectBase
 
     void processBlock(const AbacDsp::AudioBuffer<2, BlockSize>& in, AbacDsp::AudioBuffer<2, BlockSize>& out)
     {
+        std::array<float, BlockSize> inData{};
         for (size_t i = 0; i < BlockSize; ++i)
         {
-            out(i, 0) = in(i, 0);
-            out(i, 1) = in(i, 1);
+            inData[i] = in(i, 0) + in(i, 1);
+        }
+        std::array<float, BlockSize> left{};
+        std::array<float, BlockSize> right{};
+        // m_fdnTank.processBlock(inData.data(), left.data(), BlockSize);
+        // for (size_t i = 0; i < BlockSize; ++i)
+        // {
+        //     out(i, 0) = m_dry * in(i, 0) + m_wet * left[i];
+        //     out(i, 1) = m_dry * in(i, 1) + m_wet * left[i];
+        // }
+        m_fdnTank.processBlockSplit(inData.data(), left.data(), right.data(), BlockSize);
+        for (size_t i = 0; i < BlockSize; ++i)
+        {
+            out(i, 0) = m_dry * in(i, 0) + m_wet * left[i];
+            out(i, 1) = m_dry * in(i, 1) + m_wet * right[i];
         }
     }
 
@@ -108,4 +137,6 @@ class MiniReverbImpl final : public EffectBase
     float m_modulationDepth{};
     float m_modulationSpeed{};
     bool m_modulationCount{};
+
+    AbacDsp::FdnTank<100000, 32> m_fdnTank;
 };

@@ -57,19 +57,18 @@ class ModulatingDelayPitchedAdjust
         setFeedback(negative ? -feedback : feedback);
     }
 
-    void setModulationDepth(const float depth)
+    void setModDepth(const float depth)
     {
         m_modWidth = depth * 100.f;
     }
 
-    void setModulationSpeed(float speedHz)
+    void setModSpeed(float speedHz)
     {
         m_modAdvanceTick = 2.f * speedHz / m_sampleRate;
     }
 
     void sweepTick()
     {
-
         m_currentPhase += m_modAdvanceTick;
         if (m_currentPhase >= 1.0f)
         {
