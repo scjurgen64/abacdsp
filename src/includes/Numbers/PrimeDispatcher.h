@@ -6,7 +6,7 @@
 #include <type_traits>
 #include <vector>
 
-namespace AbacadDsp
+namespace AbacDsp
 {
 /*
  * prime number are needed for delay buffer chains (without modulation)

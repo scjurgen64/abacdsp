@@ -1,9 +1,9 @@
 #pragma once
 
 
-namespace AbacadDsp
+namespace AbacDsp
 {
-void hadamardFeed(const unsigned order, const float* col, float* sum) noexcept
+inline void hadamardFeed(const unsigned order, const float* col, float* sum) noexcept
 {
     switch (order)
     {

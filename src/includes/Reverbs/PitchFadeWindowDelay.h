@@ -6,7 +6,7 @@
 #include <random>
 #include <vector>
 
-namespace AbacadDsp
+namespace AbacDsp
 {
 template <size_t MAXSIZE>
 class PitchFadeWindowDelay

@@ -15,7 +15,7 @@
 #include <cmath>
 #include <vector>
 
-namespace AbacadDsp
+namespace AbacDsp
 {
 
 template <size_t MaxDelayLength, size_t NumElements>
@@ -368,7 +368,6 @@ class DiffuserDelayChain
     bool m_fadeOutAugmentElements{false};
     bool m_fadeInReduceElements{false};
 };
-
 
 
 }

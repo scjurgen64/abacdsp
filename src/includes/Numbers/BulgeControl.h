@@ -6,7 +6,7 @@
 #include <iterator>
 #include <type_traits>
 
-namespace AbacadDsp
+namespace AbacDsp
 {
 /*
  * bulge table

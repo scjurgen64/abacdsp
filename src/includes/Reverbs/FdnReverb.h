@@ -8,7 +8,7 @@
 
 #include "HadamardFeed.h"
 
-#include "Numbers/ConstructArray.h"
+#include "Helpers/ConstructArray.h"
 #include "Numbers/PrimeDispatcher.h"
 
 #include <random>
@@ -16,22 +16,23 @@
 namespace AbacDsp
 {
 template <size_t MaxSizePerElement, size_t MAXORDER>
-class FDNExploreReverbTank
+class FdnTank
 {
     static constexpr size_t processingSize = 16;
     static constexpr size_t NumPitchDelays = 4;
+    static constexpr size_t MaxSpecialFilters = 4;
 
   public:
-    using LowPassFilter = AbacadDsp::OnePoleFilter<AbacadDsp::OnePoleFilterCharacteristic::LowPass, false>;
-    using HighPassFilter = AbacadDsp::OnePoleFilter<AbacadDsp::OnePoleFilterCharacteristic::HighPass, false>;
-    using AllPassFilter = Ap6TwoStage;
+    using LowPassFilter = OnePoleFilter<OnePoleFilterCharacteristic::LowPass>;
+    using HighPassFilter = OnePoleFilter<OnePoleFilterCharacteristic::HighPass>;
+    using AllPassFilter = OnePoleFilter<OnePoleFilterCharacteristic::AllPass>;
 
-    explicit FDNExploreReverbTank(const float sampleRate)
+    explicit FdnTank(const float sampleRate)
         : m_feedBackGain(1.0f / std::sqrt(static_cast<float>(MAXORDER)))
         , m_sampleRate(sampleRate)
-        , m_lp(constructArray<LowPassFilter, MAXORDER>(sampleRate))
-        , m_hp(constructArray<HighPassFilter, MAXORDER>(sampleRate))
-        , m_ap(constructArray<AllPassFilter, MAXORDER>(sampleRate))
+        , m_lp(constructArray<LowPassFilter, MaxSpecialFilters>(sampleRate))
+        , m_hp(constructArray<HighPassFilter, MaxSpecialFilters>(sampleRate))
+        , m_ap(constructArray<AllPassFilter, MaxSpecialFilters>(sampleRate))
     {
         setMinSize(10);
         setMaxSize(20);
@@ -166,7 +167,7 @@ class FDNExploreReverbTank
     {
         auto w = static_cast<size_t>(m_sampleRate * meters / 333.3f);
         w = std::clamp<size_t>(w, 11, MaxSizePerElement);
-        w = AbacadDsp::getUsefulPrime<11>(w);
+        w = getUsefulPrime<11>(w);
         return w;
     }
 
@@ -174,7 +175,7 @@ class FDNExploreReverbTank
     {
         auto w = static_cast<size_t>(m_sampleRate * meters / 333.3f);
         w = std::clamp<size_t>(w, 11, MaxSizePerElement);
-        w = AbacadDsp::getUsefulPrime<11>(w);
+        w = getUsefulPrime<11>(w);
         m_currentWidth[index] = w;
         m_delay[index].setSize(w);
         const auto tmp = powf(0.001f, m_currentWidth[index] / m_sampleRate / (m_msecs / 1000.0f));
@@ -373,17 +374,17 @@ class FDNExploreReverbTank
             m_lastValue[idx] = m_invSaturationDepth * std::atan(m_saturationDepth * m_lastValue[idx]);
         }
 
-        for (size_t s = 0; s < m_order && s < m_countLowpass; ++s)
+        for (size_t s = 0; s < m_countLowpass; ++s)
         {
             size_t idx = s + (m_order - m_countLowpass) / 2;
             m_lastValue[idx] = m_lp[s].step(m_lastValue[idx]);
         }
-        for (size_t s = 0; s < m_order && s < m_countHighpass; ++s)
+        for (size_t s = 0; s < m_countHighpass; ++s)
         {
             size_t idx = s + (m_order - m_countHighpass) / 2;
             m_lastValue[idx] = m_hp[idx].step(m_lastValue[idx]);
         }
-        for (size_t s = 0; s < m_order && s < m_countAllpass; ++s)
+        for (size_t s = 0; s < m_countAllpass; ++s)
         {
             size_t idx = s + (m_order - m_countAllpass) / 2;
             m_lastValue[idx] = m_ap[idx].step(m_lastValue[idx]);
@@ -497,7 +498,7 @@ class FDNExploreReverbTank
     std::array<float, MAXORDER> m_feedValue{};
     float m_msecs{100.0f};
     std::array<float, MAXORDER> m_gain{};
-
+    std::array<NaiveDelay<MaxSizePerElement>, MAXORDER - MaxSpecialFilters> m_naiveDelay{};
     std::array<ModulationDelayNoFeedback<MaxSizePerElement>, MAXORDER> m_delay{};
     std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_octaveDelay{};
     std::array<LowPassFilter, MAXORDER> m_lp;

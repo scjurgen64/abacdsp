@@ -8,7 +8,7 @@
 #include <cmath>
 #include <vector>
 
-namespace AbacadDsp
+namespace AbacDsp
 {
 enum class ChangeSizeMode
 {
