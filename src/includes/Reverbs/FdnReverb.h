@@ -1,13 +1,10 @@
 #pragma once
 
-
 #include "Delays/ModulationDelay.h"
-
+#include "Delays/DispersionDelay.h"
 #include "Filters/Biquad.h"
 #include "Filters/OnePoleFilter.h"
-
 #include "HadamardFeed.h"
-
 #include "Helpers/ConstructArray.h"
 #include "Numbers/PrimeDispatcher.h"
 
@@ -32,7 +29,6 @@ class FdnTank
         , m_sampleRate(sampleRate)
         , m_lp(constructArray<LowPassFilter, MaxSpecialFilters>(sampleRate))
         , m_hp(constructArray<HighPassFilter, MaxSpecialFilters>(sampleRate))
-        , m_ap(constructArray<AllPassFilter, MaxSpecialFilters>(sampleRate))
     {
         setMinSize(10);
         setMaxSize(20);
@@ -498,7 +494,7 @@ class FdnTank
     std::array<float, MAXORDER> m_feedValue{};
     float m_msecs{100.0f};
     std::array<float, MAXORDER> m_gain{};
-    std::array<NaiveDelay<MaxSizePerElement>, MAXORDER - MaxSpecialFilters> m_naiveDelay{};
+    std::array<DispersionDelay<MaxSizePerElement>, MAXORDER - MaxSpecialFilters> m_naiveDelay{};
     std::array<ModulationDelayNoFeedback<MaxSizePerElement>, MAXORDER> m_delay{};
     std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_octaveDelay{};
     std::array<LowPassFilter, MAXORDER> m_lp;

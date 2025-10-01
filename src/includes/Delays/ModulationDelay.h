@@ -69,6 +69,7 @@ class ModulatingDelayPitchedAdjust
 
     void sweepTick()
     {
+
         m_currentPhase += m_modAdvanceTick;
         if (m_currentPhase >= 1.0f)
         {
@@ -130,7 +131,7 @@ class ModulatingDelayPitchedAdjust
         {
             if (m_lastDistanceRequested)
             {
-                adjustBufferByPitching(m_lastDistanceRequested + 3);
+                adjustBufferByPitchingWithTransition(m_lastDistanceRequested + 3, 0.1f);
                 m_lastDistanceRequested = 0;
             }
         }
@@ -153,6 +154,29 @@ class ModulatingDelayPitchedAdjust
         for (uint32_t pos = 0; pos < blockSize; pos++)
         {
             out[pos] = step(in[pos]);
+        }
+    }
+
+    void adjustBufferByPitchingWithTransition(size_t newSize, float transitionTimeMs)
+    {
+        m_newDistance = newSize;
+        if (newSize > m_currentDistance)
+        {
+            if (newSize == 0)
+                return;
+            m_advanceSteps = true;
+            float distance = newSize - m_currentDistance;
+            float samples_for_transition = transitionTimeMs * m_sampleRate * 0.001f;
+            m_advance = std::max(distance / samples_for_transition, 0.01f); // avoid too small advance
+        }
+        else
+        {
+            if (m_currentDistance == 0)
+                return;
+            m_advanceSteps = true;
+            float distance = m_currentDistance - newSize;
+            float samples_for_transition = transitionTimeMs * m_sampleRate * 0.001f;
+            m_advance = std::max(distance / samples_for_transition, 0.01f);
         }
     }
 

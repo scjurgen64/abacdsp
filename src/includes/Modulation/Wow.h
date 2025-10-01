@@ -28,8 +28,6 @@ class Wow
         , m_depthLowpass(sampleRate)
         , m_ouProcess(sampleRate)
         , m_rng(std::random_device{}())
-    //, m_rateSmoothed(1.f)
-
     {
         m_rateSmoothed.newTransition(1.f, defaultSmoothingTime, m_sampleRate, true);
         m_varianceSmoothed.newTransition(0.0f, defaultSmoothingTime, m_sampleRate, true);
@@ -134,7 +132,7 @@ class Wow
     float m_depth{1.f};
     //    LinearSmoothing m_depthSmoothed;
     LinearSmoothing m_varianceSmoothed;
-    float m_drift;
+    float m_drift{};
 
     float m_phase{0.0f};
     float m_driftPhase{0.0f};         // Separate phase for drift oscillation

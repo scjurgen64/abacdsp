@@ -1,7 +1,6 @@
 #pragma once
 
-#include "InterpolationCollection.h"
-#include "Numbers/MathApproximations.h"
+#include "Numbers/Interpolation.h"
 
 #include <random>
 #include <vector>
@@ -33,7 +32,7 @@ class PitchFadeWindowDelay
         const float invFadeTime = 1.0f / m_readHeads.fadeTime;
         for (size_t i = 0; i < m_readHeads.fadeTime; ++i)
         {
-            m_fadeBuffer[i] = taylorSineApproximation(static_cast<float>(i) * invFadeTime);
+            m_fadeBuffer[i] = static_cast<float>(i) * invFadeTime;
         }
     }
 
@@ -140,7 +139,7 @@ class PitchFadeWindowDelay
         const auto idx = static_cast<size_t>(floorf(position));
         const float fractional = position - static_cast<float>(idx);
         // whenever using another interpolation set the MaxInterpolationWidth
-        return Interpolation<float>::linearPt2(&m_buffer[idx % m_maxSize], fractional);
+        return Interpolation::linearPt2(&m_buffer[idx % m_maxSize], fractional);
     }
 
     [[nodiscard]] float calcMaterialInPosition()
