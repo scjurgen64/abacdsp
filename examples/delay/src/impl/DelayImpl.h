@@ -81,7 +81,7 @@ class DelayImpl final : public EffectBase
     {
         for (auto& f : m_delay)
         {
-            f.setModulationDepth(depthPercentage * 0.01f);
+            f.setModDepth(depthPercentage * 0.01f);
         }
     }
 
@@ -89,7 +89,7 @@ class DelayImpl final : public EffectBase
     {
         for (auto& f : m_delay)
         {
-            f.setModulationSpeed(speed);
+            f.setModSpeed(speed);
         }
     }
 

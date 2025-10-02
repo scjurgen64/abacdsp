@@ -43,19 +43,24 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         m_parameters.addParameterListener("order", this);
         m_parameters.addParameterListener("dry", this);
         m_parameters.addParameterListener("wet", this);
-        m_parameters.addParameterListener("lowSize", this);
-        m_parameters.addParameterListener("highSize", this);
-        m_parameters.addParameterListener("uniqueDelay", this);
+        m_parameters.addParameterListener("stereoWidth", this);
+        m_parameters.addParameterListener("baseSize", this);
+        m_parameters.addParameterListener("sizeFactor", this);
         m_parameters.addParameterListener("bulge", this);
+        m_parameters.addParameterListener("uniqueDelay", this);
         m_parameters.addParameterListener("decay", this);
         m_parameters.addParameterListener("allPassUp", this);
         m_parameters.addParameterListener("allPassDown", this);
-        m_parameters.addParameterListener("allPassCount", this);
         m_parameters.addParameterListener("lowPass", this);
+        m_parameters.addParameterListener("lowPassCount", this);
         m_parameters.addParameterListener("highPass", this);
+        m_parameters.addParameterListener("highPassCount", this);
         m_parameters.addParameterListener("modulationDepth", this);
         m_parameters.addParameterListener("modulationSpeed", this);
-        m_parameters.addParameterListener("modulationCount", this);
+        m_parameters.addParameterListener("reversePitch", this);
+        m_parameters.addParameterListener("pitchStrength", this);
+        m_parameters.addParameterListener("pitch1Inplace", this);
+        m_parameters.addParameterListener("pitch2Inplace", this);
     }
     ~AudioPluginAudioProcessor() override = default;
 
@@ -221,7 +226,8 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     {
         std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("order", 1), "Order", juce::StringArray{"4", "8", "12", "16", "20", "24"}, 8));
+            juce::ParameterID("order", 1), "Order",
+            juce::StringArray{"4", "8", "12", "16", "20", "24", "32", "48", "64"}, 8));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("dry", 1), "Dry", juce::NormalisableRange<float>(-100, 12, 0.1, 1, false), 0,
             juce::String("Dry"), juce::AudioProcessorParameter::genericParameter,
@@ -231,43 +237,52 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::String("Wet"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("lowSize", 1), "1st size", juce::NormalisableRange<float>(1.0, 600, 0.01, 0.5, false), 10,
-            juce::String("1st size"), juce::AudioProcessorParameter::genericParameter,
+            juce::ParameterID("stereoWidth", 1), "Stereo Width", juce::NormalisableRange<float>(0, 100, 0.1, 1, false),
+            100, juce::String("Stereo Width"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 1) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("baseSize", 1), "Base size", juce::NormalisableRange<float>(1.0, 600, 0.01, 0.5, false),
+            10, juce::String("Base size"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 2) + " m"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("highSize", 1), "Last size", juce::NormalisableRange<float>(1.0, 600, 0.01, 0.5, false),
-            25, juce::String("Last size"), juce::AudioProcessorParameter::genericParameter,
-            [](float value, float) { return juce::String(value, 2) + " m"; }));
-        params.push_back(
-            std::make_unique<juce::AudioParameterBool>(juce::ParameterID("uniqueDelay", 1), "Unique delay", 1));
+            juce::ParameterID("sizeFactor", 1), "Size Factor",
+            juce::NormalisableRange<float>(1.0, 20, 0.01, 1.0, false), 3.1, juce::String("Size Factor"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 2) + " x"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("bulge", 1), "Bulge", juce::NormalisableRange<float>(-1, 1, 0.01, 1, false), 0,
             juce::String("Bulge"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 2) + " "; }));
+        params.push_back(
+            std::make_unique<juce::AudioParameterBool>(juce::ParameterID("uniqueDelay", 1), "Unique delay", 1));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("decay", 1), "Decay", juce::NormalisableRange<float>(0, 100000, 0.1, 0.25, false), 2000,
-            juce::String("Decay"), juce::AudioProcessorParameter::genericParameter,
+            juce::ParameterID("decay", 1), "Decay Low", juce::NormalisableRange<float>(0, 100000, 0.1, 0.25, false),
+            2000, juce::String("Decay Low"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " ms"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("allPassUp", 1), "All pass 1st", juce::NormalisableRange<float>(20, 20000, 1, 0.5, false),
-            2000, juce::String("All pass 1st"), juce::AudioProcessorParameter::genericParameter,
-            [](float value, float) { return juce::String(value, 0) + " Hz"; }));
-        params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("allPassDown", 1), "All pass last",
-            juce::NormalisableRange<float>(20, 20000, 1, 0.5, false), 1000, juce::String("All pass last"),
+            juce::ParameterID("allPassUp", 1), "All pass First",
+            juce::NormalisableRange<float>(20, 20000, 1, 0.5, false), 10000, juce::String("All pass First"),
             juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " Hz"; }));
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("allPassCount", 1), "All pass count",
-            juce::StringArray{"none", "one", "two", "1/4", "1/2", "3/4", "All"}, 0));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("allPassDown", 1), "All pass Last",
+            juce::NormalisableRange<float>(20, 20000, 1, 0.5, false), 100, juce::String("All pass Last"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " Hz"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("lowPass", 1), "Low pass", juce::NormalisableRange<float>(20, 20000, 1, 0.5, false), 3000,
             juce::String("Low pass"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("lowPassCount", 1), "Low pass count",
+            juce::StringArray{"none", "one", "two", "1/4", "1/2", "3/4", "All"}, 0));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("highPass", 1), "High pass", juce::NormalisableRange<float>(20, 20000, 1, 0.5, false),
             3000, juce::String("High pass"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("highPassCount", 1), "High pass count",
+            juce::StringArray{"none", "one", "two", "1/4", "1/2", "3/4", "All"}, 0));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("modulationDepth", 1), "Mod depth", juce::NormalisableRange<float>(0, 1, 0.01, 1, false),
             0.02, juce::String("Mod depth"), juce::AudioProcessorParameter::genericParameter,
@@ -277,9 +292,23 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::NormalisableRange<float>(0.01, 5, 0.01, 0.5, false), 0.25, juce::String("Mod speed"),
             juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 2) + " Hz"; }));
-        params.push_back(std::make_unique<juce::AudioParameterChoice>(
-            juce::ParameterID("modulationCount", 1), "Mod count",
-            juce::StringArray{"none", "one", "two", "1/4", "1/2", "3/4", "All"}, 0));
+        params.push_back(
+            std::make_unique<juce::AudioParameterBool>(juce::ParameterID("reversePitch", 1), "Reverse pitch", 0));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitchStrength", 1), "Pitch Strength",
+            juce::NormalisableRange<float>(0.0, 1.0, 0.01, 1, false), 0.5, juce::String("Pitch Strength"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 2) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch1Inplace", 1), "Pitch 1 inplace",
+            juce::NormalisableRange<float>(-12, 12, 0.01, 1, false), 0, juce::String("Pitch 1 inplace"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 2) + " st"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch2Inplace", 1), "Pitch 2 inplace",
+            juce::NormalisableRange<float>(-12, 12, 0.01, 1, false), 0, juce::String("Pitch 2 inplace"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 2) + " st"; }));
 
         return {params.begin(), params.end()};
     }
@@ -296,25 +325,35 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
              { p.pluginRunner->setOrder(static_cast<size_t>(v)); }},
             {"dry", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setDry(v); }},
             {"wet", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setWet(v); }},
-            {"lowSize", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setLowSize(v); }},
-            {"highSize", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setHighSize(v); }},
+            {"stereoWidth",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setStereoWidth(v); }},
+            {"baseSize", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setBaseSize(v); }},
+            {"sizeFactor", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setSizeFactor(v); }},
+            {"bulge", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setBulge(v); }},
             {"uniqueDelay", [](const AudioPluginAudioProcessor& p, const float v)
              { p.pluginRunner->setUniqueDelay(static_cast<bool>(v)); }},
-            {"bulge", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setBulge(v); }},
             {"decay", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setDecay(v); }},
             {"allPassUp", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setAllPassUp(v); }},
             {"allPassDown",
              [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setAllPassDown(v); }},
-            {"allPassCount", [](const AudioPluginAudioProcessor& p, const float v)
-             { p.pluginRunner->setAllPassCount(static_cast<size_t>(v)); }},
             {"lowPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setLowPass(v); }},
+            {"lowPassCount", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setLowPassCount(static_cast<size_t>(v)); }},
             {"highPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setHighPass(v); }},
+            {"highPassCount", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setHighPassCount(static_cast<size_t>(v)); }},
             {"modulationDepth",
              [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModulationDepth(v); }},
             {"modulationSpeed",
              [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModulationSpeed(v); }},
-            {"modulationCount", [](const AudioPluginAudioProcessor& p, const float v)
-             { p.pluginRunner->setModulationCount(static_cast<size_t>(v)); }},
+            {"reversePitch", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setReversePitch(static_cast<bool>(v)); }},
+            {"pitchStrength",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitchStrength(v); }},
+            {"pitch1Inplace",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch1Inplace(v); }},
+            {"pitch2Inplace",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch2Inplace(v); }},
 
         };
         if (auto it = parameterMap.find(parameterID); it != parameterMap.end())
