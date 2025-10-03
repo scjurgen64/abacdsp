@@ -28,7 +28,7 @@ class FdnTank
     explicit FdnTank(const float sampleRate)
         : m_feedBackGain(1.0f / std::sqrt(static_cast<float>(MAXORDER)))
         , m_sampleRate(sampleRate)
-        , m_naiveDelay(constructArray<SimpleDelay, MAXORDER>(sampleRate))
+        , m_basicDelay(constructArray<SimpleDelay, MAXORDER>(sampleRate))
         , m_delay(constructArray<ModDelay, MAXORDER>(sampleRate))
         , m_lp(constructArray<LowPassFilter, MaxSpecialFilters>(sampleRate))
         , m_hp(constructArray<HighPassFilter, MaxSpecialFilters>(sampleRate))
@@ -83,17 +83,6 @@ class FdnTank
         setModulationSpeed();
     }
 
-    void setSaturationDepth(const float value)
-    {
-        m_saturationDepth = value;
-        m_invSaturationDepth = 1.f / value;
-    }
-
-    void setSaturationCount(const float value)
-    {
-        m_countSaturation = value;
-    }
-
     void setPitch(size_t index, const float value)
     {
         // m_pitch[index] = std::abs(value) < 0.01f ? 0.f : value;
@@ -108,10 +97,6 @@ class FdnTank
         // }
     }
 
-    void setPitchStrength(const float value)
-    {
-        m_pitchStrength = value;
-    }
 
     void setModulationSpeed()
     {
@@ -177,7 +162,7 @@ class FdnTank
         w = getUsefulPrime<11>(w);
         m_currentWidth[index] = w;
         m_delay[index].setSize(w);
-        m_naiveDelay[index].setSize(w);
+        m_basicDelay[index].setSize(w);
         const auto tmp = powf(0.001f, m_currentWidth[index] / m_sampleRate / (m_msecs / 1000.0f));
         m_gain[index] = tmp * m_feedBackGain;
 
@@ -195,7 +180,7 @@ class FdnTank
     {
         m_currentWidth[index] = value;
         m_delay[index].setSize(value);
-        m_naiveDelay[index].setSize(value);
+        m_basicDelay[index].setSize(value);
         const auto tmp = powf(0.001f, m_currentWidth[index] / m_sampleRate / (m_msecs / 1000.0f));
         m_gain[index] = tmp * m_feedBackGain;
         for (size_t i = 0; i < NumPitchDelays; ++i)
@@ -334,14 +319,51 @@ class FdnTank
             }
         }
     }
+    void setLowPassCount(const float value)
+    { // m_v=value;
+    }
+
+    void setHighPassCount(const float value)
+    { // m_v=value;
+    }
+
+    void setModulationDepth(const float value)
+    {
+        for (auto& d : m_delay)
+        {
+            d.setModDepth(value);
+        }
+    }
+
+    void setModulationSpeed(const float value)
+    {
+        for (auto& d : m_delay)
+        {
+            d.setModSpeed(value);
+        }
+    }
+
+    void setReversePitch(const float value)
+    { // m_v=value;
+    }
+
+
+    void setPitchStrength(const float value)
+    {
+        m_pitchStrength = value;
+    }
+
+    void setPitch1Inplace(const float value)
+    { // m_v=value;
+    }
+
+    void setPitch2Inplace(const float value)
+    { // m_v=value;
+    }
+
 
     void matrixFeed(float in)
     {
-        // for (size_t s = 0; s < m_order; ++s)
-        // {
-        //     m_lastValue[s] = m_naiveDelay[s].step(in);
-        // }
-        // return;
         hadamardFeed(m_order, m_lastValue.data(), m_feedValue.data());
 
         // if (m_usePitch)
@@ -369,9 +391,14 @@ class FdnTank
         // }
         // else
         {
-            for (size_t s = 0; s < m_order; ++s)
+            for (size_t s = 0; s < m_order - m_countModulation; ++s)
             {
-                m_lastValue[s] = m_naiveDelay[s].step(in - m_feedValue[s] * m_gain[s]);
+                m_lastValue[s] = m_basicDelay[s].step(in - m_feedValue[s] * m_gain[s]);
+            }
+            for (size_t s = 0; s < m_countModulation; ++s)
+            {
+                m_lastValue[m_order - 1 - s] =
+                    m_delay[s].step(in - m_feedValue[m_order - 1 - s] * m_gain[m_order - 1 - s]);
             }
         }
         // for (size_t s = 0; s < m_order && s < m_countSaturation; ++s)
@@ -469,11 +496,11 @@ class FdnTank
 
     void setAllpass()
     {
-        for (auto i = 0; i < m_order; ++i)
+        for (size_t i = 0; i < m_order; ++i)
         {
             const auto x = static_cast<float>(i) / static_cast<float>(m_order - 1);
             const auto value = m_allPassFirst * std::pow(m_allPassLast / m_allPassFirst, x);
-            m_naiveDelay[i].setAllPassCutoff(value);
+            m_basicDelay[i].setAllPassCutoff(value);
         }
     }
 
@@ -494,7 +521,7 @@ class FdnTank
     std::array<float, MAXORDER> m_feedValue{};
     float m_msecs{100.0f};
     std::array<float, MAXORDER> m_gain{};
-    std::array<SimpleDelay, MAXORDER> m_naiveDelay;
+    std::array<SimpleDelay, MAXORDER> m_basicDelay;
     std::array<ModDelay, MAXORDER> m_delay;
     // std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_octaveDelay{};
     std::array<LowPassFilter, MaxSpecialFilters> m_lp;
@@ -504,8 +531,7 @@ class FdnTank
     size_t m_countAllpass{0};
     size_t m_countLowpass{0};
     size_t m_countHighpass{0};
-    size_t m_countModulation{0};
-    size_t m_countSaturation{0};
+    size_t m_countModulation{2};
     size_t m_order{MAXORDER};
     bool m_spreadSymmetric{false};
     bool m_avoidEqualLengthDelay{false};
@@ -513,8 +539,6 @@ class FdnTank
     bool m_usePitch{false};
     bool m_reversePitch{false};
     float m_pitchStrength{0.5f};
-    float m_saturationDepth{1.f};
-    float m_invSaturationDepth{1.f};
     std::array<float, NumPitchDelays> m_pitch{};
     std::array<float, NumPitchDelays> m_pitchOut{};
 };

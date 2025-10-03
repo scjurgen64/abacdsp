@@ -46,7 +46,7 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         // const juce::FlexItem::Margin knobMargin = juce::FlexItem::Margin(Constants::Margins::small);
         const juce::FlexItem::Margin knobMarginSmall = juce::FlexItem::Margin(Constants::Margins::medium);
 
-        std::vector<juce::Rectangle<int>> areas(5);
+        std::vector<juce::Rectangle<int>> areas(6);
         const auto colWidth = area.getWidth() / 13;
         const auto rowHeight = area.getHeight() / 6;
         areas[0] = area.removeFromLeft(colWidth * 1).reduced(Constants::Margins::small);
@@ -54,7 +54,8 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         areas[1] = area.removeFromTop(rowHeight * 2).reduced(Constants::Margins::small);
         areas[2] = area.removeFromTop(rowHeight * 1).reduced(Constants::Margins::small);
         areas[3] = area.removeFromTop(rowHeight * 1).reduced(Constants::Margins::small);
-        areas[4] = area.reduced(Constants::Margins::small);
+        areas[4] = area.removeFromTop(rowHeight * 1).reduced(Constants::Margins::small);
+        areas[5] = area.reduced(Constants::Margins::small);
 
         {
             juce::FlexBox box;
@@ -71,6 +72,9 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.flexDirection = juce::FlexBox::Direction::row;
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
             box.items.add(juce::FlexItem(decayDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(dryDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(wetDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(stereoWidthDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(spectrogramGauge).withWidth(600).withMargin(knobMarginSmall));
             box.performLayout(areas[1].toFloat());
         }
@@ -79,13 +83,13 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.flexWrap = juce::FlexBox::Wrap::noWrap;
             box.flexDirection = juce::FlexBox::Direction::row;
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
-            box.items.add(juce::FlexItem(lowSizeDial).withFlex(1).withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(highSizeDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(baseSizeDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(sizeFactorDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(bulgeDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(uniqueDelaySwitch)
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(bulgeDial).withFlex(1).withMargin(knobMarginSmall));
             box.performLayout(areas[2].toFloat());
         }
         {
@@ -95,12 +99,16 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
             box.items.add(juce::FlexItem(allPassUpDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(allPassDownDial).withFlex(1).withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(allPassCountDrop)
+            box.items.add(juce::FlexItem(lowPassDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(lowPassCountDrop)
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(lowPassDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(highPassDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(highPassCountDrop)
+                              .withWidth(Constants::Text::labelWidth)
+                              .withHeight(Constants::Text::labelHeight)
+                              .withMargin(knobMarginSmall));
             box.performLayout(areas[3].toFloat());
         }
         {
@@ -112,15 +120,23 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(dryDial).withFlex(1).withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(wetDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(modulationDepthDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(modulationSpeedDial).withFlex(1).withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(modulationCountDrop)
+            box.performLayout(areas[4].toFloat());
+        }
+        {
+            juce::FlexBox box;
+            box.flexWrap = juce::FlexBox::Wrap::noWrap;
+            box.flexDirection = juce::FlexBox::Direction::row;
+            box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
+            box.items.add(juce::FlexItem(reversePitchSwitch)
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
-            box.performLayout(areas[4].toFloat());
+            box.items.add(juce::FlexItem(pitchStrengthDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(pitch1InplaceDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(pitch2InplaceDial).withFlex(1).withMargin(knobMarginSmall));
+            box.performLayout(areas[5].toFloat());
         }
     }
 #pragma GCC diagnostic pop
@@ -144,52 +160,64 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         addAndMakeVisible(wetDial);
         wetDial.reset(valueTreeState, "wet");
         wetDial.setLabelText(juce::String::fromUTF8("Wet"));
-        addAndMakeVisible(lowSizeDial);
-        lowSizeDial.reset(valueTreeState, "lowSize");
-        lowSizeDial.setLabelText(juce::String::fromUTF8("1st size"));
-        addAndMakeVisible(highSizeDial);
-        highSizeDial.reset(valueTreeState, "highSize");
-        highSizeDial.setLabelText(juce::String::fromUTF8("Last size"));
+        addAndMakeVisible(stereoWidthDial);
+        stereoWidthDial.reset(valueTreeState, "stereoWidth");
+        stereoWidthDial.setLabelText(juce::String::fromUTF8("Stereo Width"));
+        addAndMakeVisible(baseSizeDial);
+        baseSizeDial.reset(valueTreeState, "baseSize");
+        baseSizeDial.setLabelText(juce::String::fromUTF8("Base size"));
+        addAndMakeVisible(sizeFactorDial);
+        sizeFactorDial.reset(valueTreeState, "sizeFactor");
+        sizeFactorDial.setLabelText(juce::String::fromUTF8("Size Factor"));
+        addAndMakeVisible(bulgeDial);
+        bulgeDial.reset(valueTreeState, "bulge");
+        bulgeDial.setLabelText(juce::String::fromUTF8("Bulge"));
         addAndMakeVisible(uniqueDelaySwitch);
         uniqueDelaySwitchAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
             valueTreeState, "uniqueDelay", uniqueDelaySwitch);
 
-        addAndMakeVisible(bulgeDial);
-        bulgeDial.reset(valueTreeState, "bulge");
-        bulgeDial.setLabelText(juce::String::fromUTF8("Bulge"));
         addAndMakeVisible(decayDial);
         decayDial.reset(valueTreeState, "decay");
-        decayDial.setLabelText(juce::String::fromUTF8("Decay"));
-        addAndMakeVisible(div1Label);
-        div1Label.setText(juce::String::fromUTF8("Dispersion"), juce::dontSendNotification);
+        decayDial.setLabelText(juce::String::fromUTF8("Decay Low"));
         addAndMakeVisible(allPassUpDial);
         allPassUpDial.reset(valueTreeState, "allPassUp");
-        allPassUpDial.setLabelText(juce::String::fromUTF8("All pass 1st"));
+        allPassUpDial.setLabelText(juce::String::fromUTF8("All pass First"));
         addAndMakeVisible(allPassDownDial);
         allPassDownDial.reset(valueTreeState, "allPassDown");
-        allPassDownDial.setLabelText(juce::String::fromUTF8("All pass last"));
-        addAndMakeVisible(allPassCountDrop);
-        allPassCountDrop.addItemList(valueTreeState.getParameter("allPassCount")->getAllValueStrings(), 1);
-        allPassCountDropAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-            valueTreeState, "allPassCount", allPassCountDrop);
-        addAndMakeVisible(div2Label);
-        div2Label.setText(juce::String::fromUTF8("Filters"), juce::dontSendNotification);
+        allPassDownDial.setLabelText(juce::String::fromUTF8("All pass Last"));
         addAndMakeVisible(lowPassDial);
         lowPassDial.reset(valueTreeState, "lowPass");
         lowPassDial.setLabelText(juce::String::fromUTF8("Low pass"));
+        addAndMakeVisible(lowPassCountDrop);
+        lowPassCountDrop.addItemList(valueTreeState.getParameter("lowPassCount")->getAllValueStrings(), 1);
+        lowPassCountDropAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+            valueTreeState, "lowPassCount", lowPassCountDrop);
         addAndMakeVisible(highPassDial);
         highPassDial.reset(valueTreeState, "highPass");
         highPassDial.setLabelText(juce::String::fromUTF8("High pass"));
+        addAndMakeVisible(highPassCountDrop);
+        highPassCountDrop.addItemList(valueTreeState.getParameter("highPassCount")->getAllValueStrings(), 1);
+        highPassCountDropAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
+            valueTreeState, "highPassCount", highPassCountDrop);
         addAndMakeVisible(modulationDepthDial);
         modulationDepthDial.reset(valueTreeState, "modulationDepth");
         modulationDepthDial.setLabelText(juce::String::fromUTF8("Mod depth"));
         addAndMakeVisible(modulationSpeedDial);
         modulationSpeedDial.reset(valueTreeState, "modulationSpeed");
         modulationSpeedDial.setLabelText(juce::String::fromUTF8("Mod speed"));
-        addAndMakeVisible(modulationCountDrop);
-        modulationCountDrop.addItemList(valueTreeState.getParameter("modulationCount")->getAllValueStrings(), 1);
-        modulationCountDropAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-            valueTreeState, "modulationCount", modulationCountDrop);
+        addAndMakeVisible(reversePitchSwitch);
+        reversePitchSwitchAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+            valueTreeState, "reversePitch", reversePitchSwitch);
+
+        addAndMakeVisible(pitchStrengthDial);
+        pitchStrengthDial.reset(valueTreeState, "pitchStrength");
+        pitchStrengthDial.setLabelText(juce::String::fromUTF8("Pitch Strength"));
+        addAndMakeVisible(pitch1InplaceDial);
+        pitch1InplaceDial.reset(valueTreeState, "pitch1Inplace");
+        pitch1InplaceDial.setLabelText(juce::String::fromUTF8("Pitch 1 inplace"));
+        addAndMakeVisible(pitch2InplaceDial);
+        pitch2InplaceDial.reset(valueTreeState, "pitch2Inplace");
+        pitch2InplaceDial.setLabelText(juce::String::fromUTF8("Pitch 2 inplace"));
         addAndMakeVisible(cpuGauge);
         cpuGauge.setLabelText(juce::String::fromUTF8("CPU"));
         addAndMakeVisible(levelGauge);
@@ -208,24 +236,28 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> orderDropAttachment;
     CustomRotaryDial dryDial{this};
     CustomRotaryDial wetDial{this};
-    CustomRotaryDial lowSizeDial{this};
-    CustomRotaryDial highSizeDial{this};
+    CustomRotaryDial stereoWidthDial{this};
+    CustomRotaryDial baseSizeDial{this};
+    CustomRotaryDial sizeFactorDial{this};
+    CustomRotaryDial bulgeDial{this};
     juce::ToggleButton uniqueDelaySwitch{juce::String::fromUTF8("Unique delay")};
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> uniqueDelaySwitchAttachment;
-    CustomRotaryDial bulgeDial{this};
     CustomRotaryDial decayDial{this};
-    juce::Label div1Label{};
     CustomRotaryDial allPassUpDial{this};
     CustomRotaryDial allPassDownDial{this};
-    juce::ComboBox allPassCountDrop{};
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> allPassCountDropAttachment;
-    juce::Label div2Label{};
     CustomRotaryDial lowPassDial{this};
+    juce::ComboBox lowPassCountDrop{};
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> lowPassCountDropAttachment;
     CustomRotaryDial highPassDial{this};
+    juce::ComboBox highPassCountDrop{};
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> highPassCountDropAttachment;
     CustomRotaryDial modulationDepthDial{this};
     CustomRotaryDial modulationSpeedDial{this};
-    juce::ComboBox modulationCountDrop{};
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> modulationCountDropAttachment;
+    juce::ToggleButton reversePitchSwitch{juce::String::fromUTF8("Reverse pitch")};
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> reversePitchSwitchAttachment;
+    CustomRotaryDial pitchStrengthDial{this};
+    CustomRotaryDial pitch1InplaceDial{this};
+    CustomRotaryDial pitch2InplaceDial{this};
     CpuGauge cpuGauge{};
     Gauge levelGauge{};
     SpectrogramDisplay spectrogramGauge{};
