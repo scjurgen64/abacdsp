@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Numbers/Interpolation.h"
+#include "Modulation/Wow.h"
 #include "Audio/FixedSizeProcessor.h"
 #include <algorithm>
 #include <vector>
@@ -8,14 +9,38 @@
 
 namespace AbacDsp
 {
+
+/*
+ *
+ * | ------------- rd ---------- wr -------------|
+ * | ------------------ nrd ---- wr -------------|
+ *
+ * reduce distance:
+ *     m_advanceDirection > 0.f:
+ *         delta = targetRead - currentRead
+ *         delta < 0 -> target reached
+ *         delta < 100 -> slow down
+ *
+ *
+ *
+ *
+ *
+ */
+
 template <size_t MaxSizeInSamples>
-class ModulatingDelayPitchedAdjust
+class OuModDelay
 {
   public:
-    explicit ModulatingDelayPitchedAdjust(const float sampleRate)
+    static constexpr size_t WowStep{8};
+    explicit OuModDelay(const float sampleRate)
         : m_sampleRate(sampleRate)
         , m_buffer(MaxSizeInSamples + 6)
+        , m_wow(sampleRate / WowStep)
     {
+        m_wow.setDepth(0.1f);
+        m_wow.setRate(0.25f);
+        m_wow.setDrift(0.1f);
+        m_wow.setVariance(0.1f);
     }
 
     void setWidthInMsecs(float milliseconds)
@@ -57,30 +82,36 @@ class ModulatingDelayPitchedAdjust
         setFeedback(negative ? -feedback : feedback);
     }
 
-    void setModDepth(const float depth)
+    void setModDepth(const float depth) noexcept
     {
-        m_modWidth = depth * 100.f;
+        m_wow.setDepth(depth);
     }
 
-    void setModSpeed(float speedHz)
+    void setModSpeed(const float speedHz) noexcept
     {
-        m_modAdvanceTick = 2.f * speedHz / m_sampleRate;
+        m_wow.setRate(speedHz);
     }
 
-    void sweepTick()
+    void setModVariance(const float variance) noexcept
     {
-        m_currentPhase += m_modAdvanceTick;
-        if (m_currentPhase >= 1.0f)
+        m_wow.setVariance(variance);
+    }
+
+    void setModDrift(const float drift) noexcept
+    {
+        m_wow.setDrift(drift);
+    }
+
+    int m_wowCount{WowStep - 1};
+    float m_lastWow{0.f};
+    float step(const float in) noexcept
+    {
+        if (--m_wowCount <= 0)
         {
-            m_currentPhase -= 2.0f;
+            m_lastWow = m_wow.step() * 100.f;
+            m_wowCount = WowStep;
         }
-    }
-
-    float step(const float in)
-    {
-        sweepTick();
-        const auto depth = m_modWidth * (fabsf(m_currentPhase) + 1) + 1; // triangular wave
-        float dHead = m_headRead + depth;
+        float dHead = m_headRead + m_lastWow;
         if (dHead >= MaxSizeInSamples)
         {
             dHead -= MaxSizeInSamples;
@@ -142,13 +173,13 @@ class ModulatingDelayPitchedAdjust
         return ret;
     }
 
-    bool isAdvancing() const
+    bool isAdvancing() const noexcept
     {
         return m_advanceSteps;
     }
 
     template <size_t blockSize>
-    void blockFill(const float* in, float* out)
+    void blockFill(const float* in, float* out) noexcept
     {
         for (uint32_t pos = 0; pos < blockSize; pos++)
         {
@@ -157,7 +188,7 @@ class ModulatingDelayPitchedAdjust
     }
 
   private:
-    void adjustBufferByPitching(const size_t newSize)
+    void adjustBufferByPitching(const size_t newSize) noexcept
     {
         m_newDistance = newSize;
         if (newSize > m_currentDistance)
@@ -190,13 +221,13 @@ class ModulatingDelayPitchedAdjust
     size_t m_newDistance{0};
     size_t m_lastDistanceRequested{0};
     bool m_advanceSteps{false};
-    float m_advance{1.0};
+    float m_advance{1.0f};
+    float m_advanceDirection{0.f};
 
     // modulation
-    float m_modWidth{.1};
-    float m_modAdvanceTick{0.01};
-    float m_currentPhase{0.0};
+
     bool m_setByTime{false};
     std::vector<float> m_buffer;
+    Wow m_wow;
 };
 }

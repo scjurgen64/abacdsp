@@ -50,6 +50,8 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         m_parameters.addParameterListener("allPass", this);
         m_parameters.addParameterListener("modDepth", this);
         m_parameters.addParameterListener("modSpeed", this);
+        m_parameters.addParameterListener("modVariance", this);
+        m_parameters.addParameterListener("modDrift", this);
     }
     ~AudioPluginAudioProcessor() override = default;
 
@@ -236,12 +238,12 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             [](float value, float) { return juce::String(value, 1) + " %"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("lowPass", 1), "Low pass cutoff",
-            juce::NormalisableRange<float>(100, 20000, 1, 0.3, false), 12000, juce::String("Low pass cutoff"),
+            juce::NormalisableRange<float>(10, 20000, 1, 0.3, false), 12000, juce::String("Low pass cutoff"),
             juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " Hz"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("highPass", 1), "High pass cutoff",
-            juce::NormalisableRange<float>(100, 20000, 1, 0.3, false), 50, juce::String("High pass cutoff"),
+            juce::NormalisableRange<float>(10, 20000, 1, 0.3, false), 50, juce::String("High pass cutoff"),
             juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " Hz"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -258,6 +260,16 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::NormalisableRange<float>(0.05, 20, 0.1, 0.3, false), 0.25, juce::String("Modulation speed"),
             juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " Hz"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("modVariance", 1), "Modulation Variance",
+            juce::NormalisableRange<float>(0.0, 100.0, 1.0, 1.0, false), 10, juce::String("Modulation Variance"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " %"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("modDrift", 1), "Modulation Drift",
+            juce::NormalisableRange<float>(0.0, 100.0, 1.0, 1.0, false), 10, juce::String("Modulation Drift"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " %"; }));
 
         return {params.begin(), params.end()};
     }
@@ -280,6 +292,9 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             {"allPass", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setAllPass(v); }},
             {"modDepth", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModDepth(v); }},
             {"modSpeed", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModSpeed(v); }},
+            {"modVariance",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModVariance(v); }},
+            {"modDrift", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setModDrift(v); }},
 
         };
         if (auto it = parameterMap.find(parameterID); it != parameterMap.end())

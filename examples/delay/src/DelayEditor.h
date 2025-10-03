@@ -83,6 +83,8 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
             box.items.add(juce::FlexItem(modDepthDial).withFlex(1).withMargin(knobMarginSmall));
             box.items.add(juce::FlexItem(modSpeedDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(modVarianceDial).withFlex(1).withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(modDriftDial).withFlex(1).withMargin(knobMarginSmall));
             box.performLayout(areas[2].toFloat());
         }
         {
@@ -137,6 +139,12 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         addAndMakeVisible(modSpeedDial);
         modSpeedDial.reset(valueTreeState, "modSpeed");
         modSpeedDial.setLabelText(juce::String::fromUTF8("Modulation speed"));
+        addAndMakeVisible(modVarianceDial);
+        modVarianceDial.reset(valueTreeState, "modVariance");
+        modVarianceDial.setLabelText(juce::String::fromUTF8("Modulation Variance"));
+        addAndMakeVisible(modDriftDial);
+        modDriftDial.reset(valueTreeState, "modDrift");
+        modDriftDial.setLabelText(juce::String::fromUTF8("Modulation Drift"));
         addAndMakeVisible(cpuGauge);
         cpuGauge.setLabelText(juce::String::fromUTF8("CPU"));
         addAndMakeVisible(levelGauge);
@@ -163,6 +171,8 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     CustomRotaryDial allPassDial{this};
     CustomRotaryDial modDepthDial{this};
     CustomRotaryDial modSpeedDial{this};
+    CustomRotaryDial modVarianceDial{this};
+    CustomRotaryDial modDriftDial{this};
     CpuGauge cpuGauge{};
     Gauge levelGauge{};
     SpectrogramDisplay spectrogramGauge{};
