@@ -3,7 +3,7 @@
 #include "EffectBase.h"
 
 #include "Audio/AudioBuffer.h"
-#include "Delays/ModulationDelay.h"
+#include "Delays/OuModDelay.h"
 #include "Filters/OnePoleFilter.h"
 #include "Helpers/ConstructArray.h"
 
@@ -11,7 +11,7 @@ template <size_t BlockSize>
 class DelayImpl final : public EffectBase
 {
   public:
-    using Delay = AbacDsp::ModulatingDelayPitchedAdjust<48000 * 10>;
+    using Delay = AbacDsp::OuModDelay<48000 * 4>;
     using LowPass = AbacDsp::OnePoleFilter<AbacDsp::OnePoleFilterCharacteristic::LowPass>;
     using HighPass = AbacDsp::OnePoleFilter<AbacDsp::OnePoleFilterCharacteristic::HighPass>;
     using AllPass = AbacDsp::OnePoleFilter<AbacDsp::OnePoleFilterCharacteristic::AllPass>;
@@ -87,12 +87,28 @@ class DelayImpl final : public EffectBase
 
     void setModSpeed(const float speed)
     {
-        for (auto& f : m_delay)
+        float factor = 1.f;
+        for (auto& d : m_delay)
         {
-            f.setModSpeed(speed);
+            d.setModSpeed(speed * factor);
+            factor *= 1.01f;
         }
     }
 
+    void setModVariance(const float variance)
+    {
+        for (auto& f : m_delay)
+        {
+            f.setModVariance(variance * 0.01f);
+        }
+    }
+    void setModDrift(const float drift)
+    {
+        for (auto& f : m_delay)
+        {
+            f.setModDrift(drift * 0.01f);
+        }
+    }
     void setTimeInMs(const float value)
     {
         for (auto& d : m_delay)

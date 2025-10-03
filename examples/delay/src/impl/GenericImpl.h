@@ -58,6 +58,14 @@ class GenericImpl final : public EffectBase
     {
         m_modSpeed = value;
     }
+    void setModVariance(const float value)
+    {
+        m_modVariance = value;
+    }
+    void setModDrift(const float value)
+    {
+        m_modDrift = value;
+    }
 
     void processBlock(const AbacDsp::AudioBuffer<2, BlockSize>& in, AbacDsp::AudioBuffer<2, BlockSize>& out)
     {
@@ -92,6 +100,8 @@ class GenericImpl final : public EffectBase
     float m_allPass{};
     float m_modDepth{};
     float m_modSpeed{};
+    float m_modVariance{};
+    float m_modDrift{};
 
 
     std::vector<float> m_visualWavedata;

@@ -100,6 +100,10 @@ class FdnTank
 
     void setModulationSpeed()
     {
+        if (!m_countModulation)
+        {
+            return;
+        }
         for (size_t i = 0; i < m_countModulation; ++i)
         {
             m_delay[i].setModSpeed(m_modSpeed + m_modSpeed * static_cast<float>(i) / m_countModulation);
