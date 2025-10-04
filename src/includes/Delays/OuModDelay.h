@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Audio/FixedSizeProcessor.h"
+#include "FracReadHead.h"
 #include "Numbers/Interpolation.h"
 #include "Modulation/Wow.h"
-#include "Audio/FixedSizeProcessor.h"
+
 #include <algorithm>
 #include <vector>
 #include <cmath>
@@ -108,7 +110,7 @@ class OuModDelay
     {
         if (--m_wowCount <= 0)
         {
-            m_lastWow = m_wow.step() * 100.f;
+            m_lastWow = (m_wow.step() - 1) * 100.f;
             m_wowCount = WowStep;
         }
         float dHead = m_headRead + m_lastWow;
@@ -217,7 +219,7 @@ class OuModDelay
     size_t m_headWrite{0};
     float m_decayMsecs{100};
     // adapt soft buffersize *speed up/down*
-    size_t m_currentDistance{MaxSizeInSamples / 10};
+    size_t m_currentDistance{MaxSizeInSamples / 16};
     size_t m_newDistance{0};
     size_t m_lastDistanceRequested{0};
     bool m_advanceSteps{false};
