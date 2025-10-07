@@ -49,9 +49,10 @@ class FlutterLfo
     // the error respect to std::cos is ok when used for lfo stuff
     static float qcos(const float x) noexcept
     {
-        constexpr float piInv = 1 / std::numbers::pi_v<float>;
-        const float xp = x;
-        return 1 - 6 * xp * xp + 4 * std::abs(xp * xp * xp);
+        constexpr float c1 = 0.6079271019f; // 6/π²
+        constexpr float c2 = 0.1290061377f; // 4/π³
+        const auto xSqr = x * x;
+        return 1 - c1 * xSqr + c2 * std::abs(xSqr * x);
     }
     float m_frequencyMultiplier;
     float m_amplitude;
@@ -64,8 +65,7 @@ class Flutter
   public:
     explicit Flutter(const float sampleRate)
         : m_sampleRate(sampleRate)
-        , m_lfos({FlutterLfo(sampleRate, 1.0f, 1.0f, 0.0f),
-                  FlutterLfo(sampleRate, 2.0f, 0.3f, 13.0f / 4.0f),
+        , m_lfos({FlutterLfo(sampleRate, 1.0f, 1.0f, 0.0f), FlutterLfo(sampleRate, 2.0f, 0.3f, 13.0f / 4.0f),
                   FlutterLfo(sampleRate, 3.0f, 0.2f, -1.f / 10.0f)})
     {
         m_rateSmoothed.newTransition(0.3f, defaultSmoothingTime, m_sampleRate, true);
@@ -107,7 +107,6 @@ class Flutter
         {
             flutterValue += lfo.step(m_flutterFreq);
         }
-
         // Convert to speed ratio: 1.0 = normal speed
         // Scale depth to produce realistic flutter variations (typically ±0.01% to ±1%)
         return 1.0f + m_depth * flutterValue;

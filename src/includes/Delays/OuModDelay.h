@@ -38,6 +38,7 @@ class OuModDelay
         : m_sampleRate(sampleRate)
         , m_buffer(MaxSizeInSamples + 6)
         , m_wow(sampleRate / WowStep)
+        , m_rdHd(sampleRate)
     {
         m_wow.setDepth(0.1f);
         m_wow.setRate(0.25f);
@@ -47,15 +48,9 @@ class OuModDelay
 
     void setWidthInMsecs(float milliseconds)
     {
-        m_setByTime = true;
         auto newSize = std::clamp<size_t>(getSamplesPerMillisecond(milliseconds, m_sampleRate, MaxSizeInSamples), 48u,
                                           MaxSizeInSamples - 1);
-
-        if (newSize == m_currentDistance)
-        {
-            return;
-        }
-        m_lastDistanceRequested = newSize;
+        m_rdHd.setNewDelta(newSize, 2.f, 4000);
     }
 
     void setSize(size_t newSize)
@@ -64,12 +59,7 @@ class OuModDelay
         {
             newSize = MaxSizeInSamples - 1;
         }
-        if (newSize == m_currentDistance)
-        {
-            return;
-        }
-        m_setByTime = false;
-        m_lastDistanceRequested = newSize;
+        m_rdHd.setNewDelta(newSize, 2.f, 4000);
     }
 
     void setFeedback(const float gain)
@@ -80,7 +70,7 @@ class OuModDelay
     void feedBackByTime(const float msecs, const float db = 0.001f, const bool negative = false)
     {
         m_decayMsecs = msecs;
-        const auto feedback = std::pow(db, m_currentDistance / m_sampleRate / (msecs / 1000.0f));
+        const auto feedback = std::pow(db, m_rdHd.getCurrentPosition() / m_sampleRate / (msecs / 1000.0f));
         setFeedback(negative ? -feedback : feedback);
     }
 
@@ -106,6 +96,7 @@ class OuModDelay
 
     int m_wowCount{WowStep - 1};
     float m_lastWow{0.f};
+
     float step(const float in) noexcept
     {
         if (--m_wowCount <= 0)
@@ -113,7 +104,9 @@ class OuModDelay
             m_lastWow = (m_wow.step() - 1) * 100.f;
             m_wowCount = WowStep;
         }
-        float dHead = m_headRead + m_lastWow;
+
+
+        float dHead = m_rdHd.step(m_headWrite) + m_lastWow;
         if (dHead >= MaxSizeInSamples)
         {
             dHead -= MaxSizeInSamples;
@@ -136,48 +129,7 @@ class OuModDelay
         {
             m_headWrite = 0;
         }
-        if (m_advanceSteps)
-        {
-            long dt;
-            if (m_headWrite > m_headRead)
-            {
-                dt = m_headWrite - (long) m_headRead;
-            }
-            else
-            {
-                dt = m_headWrite + MaxSizeInSamples - (long) m_headRead;
-            }
-
-            m_currentDistance = dt;
-            if (static_cast<size_t>(dt) / 4 == m_newDistance / 4)
-            {
-                m_advanceSteps = false;
-                m_advance = 1.0;
-                if (m_setByTime)
-                {
-                    feedBackByTime(m_decayMsecs);
-                }
-            }
-        }
-        else
-        {
-            if (m_lastDistanceRequested)
-            {
-                adjustBufferByPitching(m_lastDistanceRequested + 3);
-                m_lastDistanceRequested = 0;
-            }
-        }
-        m_headRead += m_advance;
-        if (m_headRead >= MaxSizeInSamples)
-        {
-            m_headRead -= MaxSizeInSamples;
-        }
         return ret;
-    }
-
-    bool isAdvancing() const noexcept
-    {
-        return m_advanceSteps;
     }
 
     template <size_t blockSize>
@@ -190,45 +142,15 @@ class OuModDelay
     }
 
   private:
-    void adjustBufferByPitching(const size_t newSize) noexcept
-    {
-        m_newDistance = newSize;
-        if (newSize > m_currentDistance)
-        {
-            if (newSize == 0)
-            {
-                return;
-            }
-            m_advanceSteps = true;
-            m_advance = 0.5f;
-        }
-        else
-        {
-            if (m_currentDistance == 0)
-            {
-                return;
-            }
-            m_advanceSteps = true;
-            m_advance = 2.f;
-        }
-    }
-
     float m_sampleRate{48000.0f};
     float m_feedback{0};
-    float m_headRead{0};
     size_t m_headWrite{0};
     float m_decayMsecs{100};
     // adapt soft buffersize *speed up/down*
-    size_t m_currentDistance{MaxSizeInSamples / 16};
-    size_t m_newDistance{0};
-    size_t m_lastDistanceRequested{0};
-    bool m_advanceSteps{false};
-    float m_advance{1.0f};
-    float m_advanceDirection{0.f};
 
+    FracReadHead<MaxSizeInSamples> m_rdHd;
     // modulation
 
-    bool m_setByTime{false};
     std::vector<float> m_buffer;
     Wow m_wow;
 };

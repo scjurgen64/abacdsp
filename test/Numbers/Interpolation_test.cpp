@@ -87,7 +87,7 @@ INSTANTIATE_TEST_SUITE_P(
                                              "hermite65z",
                                              {-0.25f, -0.165314f, 0.12207f, 0.411041f, 0.5f}}));
 
-// Additional property tests
+
 TEST(InterpolationProperties, ConstantInputPreservation)
 {
     std::array constantData{5.f, 5.f, 5.f, 5.f, 5.f, 5.f};
@@ -105,4 +105,4 @@ TEST(InterpolationProperties, ConstantInputPreservation)
     }
 }
 
-} // namespace AbacDsp::Test
+}

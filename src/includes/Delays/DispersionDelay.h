@@ -167,4 +167,4 @@ class DispersionDelay
     std::vector<float> m_buffer;
 };
 
-} // namespace AbacDsp
+}
