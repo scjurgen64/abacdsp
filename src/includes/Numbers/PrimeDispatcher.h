@@ -33,7 +33,11 @@ namespace AbacDsp
     return true;
 }
 
+/*
+ * this does NOT work for MINVALUE  less than 3
+ */
 template <size_t MINVALUE>
+    requires(MINVALUE >= 3)
 [[nodiscard]] size_t getUsefulPrime(const size_t wIn)
 {
     auto n = std::max(MINVALUE, wIn) | 1;
@@ -43,7 +47,7 @@ template <size_t MINVALUE>
     }
     // maximum tries 250, that is enough for correct primes until 387'096'133
     // after that however we still hit a lot of primes
-    // a buffer primed to that huge number is actually pointless (8000 seconds periodlength)
+    // a buffer primed to that huge number is actually pointless (>2 hours seconds periodlength at 48kHz)
     for (size_t m = 0; m < 250; ++m)
     {
         if (isPrimeNumber(n))

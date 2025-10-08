@@ -7,7 +7,7 @@
 #include "Fader.h"
 #include "Filters/OnePoleFilter.h"
 #include "Numbers/BulgeControl.h"
-#include "Numbers/ConstructArray.h"
+#include "Helpers/ConstructArray.h"
 #include "Numbers/PrimeDispatcher.h"
 #include "SplitProcessing.h"
 

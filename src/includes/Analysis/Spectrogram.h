@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "Analysis/FftSmall.h"
+
 namespace AbacDsp
 {
 class MelSpectroGram
