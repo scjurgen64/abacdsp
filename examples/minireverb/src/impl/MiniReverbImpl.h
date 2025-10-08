@@ -3,6 +3,7 @@
 #include "EffectBase.h"
 #include "Audio/AudioBuffer.h"
 #include "Reverbs/FdnReverb.h"
+#include "Reverbs/FdnTankRef.h"
 
 
 template <size_t BlockSize>
@@ -12,6 +13,7 @@ class MiniReverbImpl final : public EffectBase
     MiniReverbImpl(const float sampleRate)
         : EffectBase(sampleRate)
         , m_fdnTank{sampleRate}
+        , m_fdnTank2(sampleRate)
     {
     }
 
@@ -20,6 +22,7 @@ class MiniReverbImpl final : public EffectBase
         const std::vector<size_t> orderMap{4, 8, 12, 16, 20, 24, 32, 48, 64};
         m_order = value;
         m_fdnTank.setOrder(orderMap[value]);
+        m_fdnTank2.setOrder(orderMap[value]);
     }
 
     void setDry(const float value)
@@ -42,27 +45,33 @@ class MiniReverbImpl final : public EffectBase
         m_baseSize = value;
         m_fdnTank.setMinSize(value);
         m_fdnTank.setMaxSize(m_baseSize * m_sizeFactor);
+        m_fdnTank2.setMinSize(value);
+        m_fdnTank2.setMaxSize(m_baseSize * m_sizeFactor);
     }
 
     void setSizeFactor(const float value)
     {
         m_sizeFactor = value;
         m_fdnTank.setMaxSize(m_baseSize * m_sizeFactor);
+        m_fdnTank2.setMaxSize(m_baseSize * m_sizeFactor);
     }
 
     void setUniqueDelay(const bool value)
     {
         m_fdnTank.setUniqueDelay(value);
+        m_fdnTank2.setUniqueDelay(value);
     }
 
     void setBulge(const float value)
     {
         m_fdnTank.setSpreadBulge(value);
+        m_fdnTank2.setSpreadBulge(value);
     }
 
     void setDecay(const float value)
     {
         m_fdnTank.setDecay(value);
+        m_fdnTank2.setDecay(value);
     }
 
     void setAllPassUp(const float value)
@@ -136,7 +145,7 @@ class MiniReverbImpl final : public EffectBase
         }
         std::array<float, BlockSize> left{};
         std::array<float, BlockSize> right{};
-        m_fdnTank.processBlockSplit(inData.data(), left.data(), right.data(), BlockSize);
+        m_fdnTank2.processBlockSplit(inData.data(), left.data(), right.data(), BlockSize);
         for (size_t i = 0; i < BlockSize; ++i)
         {
             out(i, 0) = m_dry * in(i, 0) + m_wet * left[i];
@@ -152,4 +161,5 @@ class MiniReverbImpl final : public EffectBase
     float m_sizeFactor{};
 
     AbacDsp::FdnTank<100000, 64> m_fdnTank;
+    AbacDsp::FdnTankRef<100000, 64> m_fdnTank2;
 };

@@ -46,14 +46,6 @@ class FlutterLfo
     }
 
   private:
-    // the error respect to std::cos is ok when used for lfo stuff
-    static float qcos(const float x) noexcept
-    {
-        constexpr float c1 = 0.6079271019f; // 6/π²
-        constexpr float c2 = 0.1290061377f; // 4/π³
-        const auto xSqr = x * x;
-        return 1 - c1 * xSqr + c2 * std::abs(xSqr * x);
-    }
     float m_frequencyMultiplier;
     float m_amplitude;
     float m_phase{0};

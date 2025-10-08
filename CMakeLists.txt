@@ -57,3 +57,8 @@ if (PACKAGE_TESTS)
 
     add_subdirectory(test)
 endif ()
+
+option(PERFORMANCE_TESTS "Build performance tests" ON)
+if (PERFORMANCE_TESTS)
+add_subdirectory(documentation/Reverbs/FDN)
+endif()

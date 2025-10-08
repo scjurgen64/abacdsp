@@ -6,6 +6,7 @@
 
 namespace AbacDsp::Test
 {
+
 TEST(OuModDelayTest, simpleFeedAndEat)
 {
     OuModDelay<1000> sut(48000.f);

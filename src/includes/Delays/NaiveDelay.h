@@ -11,16 +11,15 @@ template <size_t MAXSIZE>
 class NaiveDelay
 {
   public:
-    NaiveDelay(const float sampleRate)
-        : m_sampleRate(sampleRate)
-        , m_buffer(MAXSIZE, 0.f)
+    NaiveDelay()
+        : m_buffer(MAXSIZE, 0.f)
     {
     }
 
     void setSize(const size_t newSize)
     {
         m_currentDelayWidth = std::min(newSize, MAXSIZE - 2);
-        m_read = m_head - m_currentDelayWidth + MAXSIZE - 1;
+        m_read = m_head - m_currentDelayWidth + MAXSIZE;
         while (m_read >= m_buffer.size())
         {
             m_read -= m_buffer.size();
@@ -29,15 +28,15 @@ class NaiveDelay
 
     float step(const float in)
     {
-        const float result = m_buffer[m_read++];
-        if (m_read >= m_buffer.size())
-        {
-            m_read = 0;
-        }
         m_buffer[m_head++] = in;
         if (m_head >= m_buffer.size())
         {
             m_head = 0;
+        }
+        const float result = m_buffer[m_read++];
+        if (m_read >= m_buffer.size())
+        {
+            m_read = 0;
         }
         return result;
     }
@@ -48,7 +47,6 @@ class NaiveDelay
     }
 
   private:
-    [[maybe_unused]] float m_sampleRate;
     size_t m_currentDelayWidth{MAXSIZE / 8};
     size_t m_head{0};
     size_t m_read{MAXSIZE - MAXSIZE / 8 - 1};

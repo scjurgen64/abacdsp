@@ -4,7 +4,34 @@
 #include <algorithm>
 #include <cmath>
 #include <numbers>
+/*
+enum class OnePoleFilterCharacteristic
+{
+    LowPass, HighPass, AllPass, HighPassLeaky
+};
 
+OnePoleFilter<OnePoleFilterCharacteristic::LowPass> lp;
+OnePoleFilter<OnePoleFilterCharacteristic::HighPass> hp;
+OnePoleFilter<OnePoleFilterCharacteristic::AllPass> ap;
+OnePoleFilter<OnePoleFilterCharacteristic::HighPassLeaky> hpl;
+float result = lp.setCutoff(const float cutoff);
+float  result = lp.step(const float in);
+
+Stereo version:
+template <OnePoleFilterCharacteristic FilterCharacteristic, bool ClampValues = false>
+class OnePoleFilterStereo
+    : public OnePoleBase<OnePoleFilterStereo<FilterCharacteristic, ClampValues>, FilterCharacteristic>
+{
+public:
+    explicit OnePoleFilterStereo(const float sampleRate, const float cutoff = 100.0f);
+
+    void stepStereo(float left, float right, float& outLeft, float& outRight);
+    void processBlock(float* inPlaceLeft, float* inPlaceRight, const size_t numSamples);
+    void processBlock(const float* inLeft, const float* inRight, float* outLeft, float* outRight,
+                      const size_t numSamples);
+}
+
+ */
 namespace AbacDsp
 {
 /**
@@ -37,7 +64,7 @@ enum class OnePoleFilterCharacteristic
 template <typename Derived, OnePoleFilterCharacteristic FilterCharacteristic>
 class OnePoleBase
 {
-public:
+  public:
     explicit OnePoleBase(const float sr)
         : m_sampleRate(sr)
     {
@@ -119,7 +146,7 @@ public:
         static_cast<Derived*>(this)->resetImpl();
     }
 
-protected:
+  protected:
     float m_sampleRate{48000.0f};
     float m_cutoff{100.0f};
     float m_fdbk{0.0f};
@@ -130,9 +157,8 @@ protected:
 template <OnePoleFilterCharacteristic FilterCharacteristic, bool ClampValues = false>
 class OnePoleFilter : public OnePoleBase<OnePoleFilter<FilterCharacteristic, ClampValues>, FilterCharacteristic>
 {
-public:
-    explicit OnePoleFilter(float sampleRate,
-                           float cutoff = 1000.0f) noexcept(false)
+  public:
+    explicit OnePoleFilter(float sampleRate, float cutoff = 1000.0f) noexcept(false)
         : OnePoleBase<OnePoleFilter, FilterCharacteristic>(sampleRate)
     {
         this->setCutoff(cutoff);
@@ -190,10 +216,7 @@ public:
         {
             return;
         }
-        std::transform(inPlace, inPlace + numSamples, inPlace, [this](const float x)
-        {
-            return this->step(x);
-        });
+        std::transform(inPlace, inPlace + numSamples, inPlace, [this](const float x) { return this->step(x); });
     }
 
     void processBlock(const float* in, float* out, const size_t numSamples) noexcept
@@ -203,10 +226,7 @@ public:
             std::copy_n(in, numSamples, out);
             return;
         }
-        std::transform(in, in + numSamples, out, [this](const float x)
-        {
-            return this->step(x);
-        });
+        std::transform(in, in + numSamples, out, [this](const float x) { return this->step(x); });
     }
 
     void resetImpl() noexcept
@@ -214,7 +234,7 @@ public:
         m_v = 0.0f;
     }
 
-private:
+  private:
     float m_v{0.0f};
     float m_x1{0.f};
 };
@@ -225,7 +245,7 @@ template <OnePoleFilterCharacteristic FilterCharacteristic, bool ClampValues = f
 class OnePoleFilterStereo
     : public OnePoleBase<OnePoleFilterStereo<FilterCharacteristic, ClampValues>, FilterCharacteristic>
 {
-public:
+  public:
     explicit OnePoleFilterStereo(const float sampleRate, const float cutoff = 100.0f) noexcept
         : OnePoleBase<OnePoleFilterStereo, FilterCharacteristic>(sampleRate)
     {
@@ -303,7 +323,7 @@ public:
         m_x1[0] = m_x1[1] = 0.0f;
     }
 
-private:
+  private:
     std::array<float, 2> m_v{};
     std::array<float, 2> m_x1{};
 };
@@ -315,7 +335,7 @@ class MultiChannelOnePoleFilter
     : public OnePoleBase<MultiChannelOnePoleFilter<FilterCharacteristic, ClampValues, NumChannels>,
                          FilterCharacteristic>
 {
-public:
+  public:
     explicit MultiChannelOnePoleFilter(const float sampleRate, const float cutoff = 100.0f) noexcept
         : OnePoleBase<MultiChannelOnePoleFilter, FilterCharacteristic>(sampleRate)
     {
@@ -395,7 +415,7 @@ public:
         m_x1.fill(0.0f);
     }
 
-private:
+  private:
     std::array<float, NumChannels> m_v{};
     std::array<float, NumChannels> m_x1{};
 };

@@ -5,6 +5,7 @@
 #include "Filters/Biquad.h"
 #include "Filters/OnePoleFilter.h"
 #include "HadamardFeed.h"
+#include "Delays/PitchFadeWindowDelay.h"
 #include "Helpers/ConstructArray.h"
 #include "Numbers/PrimeDispatcher.h"
 
@@ -12,11 +13,11 @@
 
 namespace AbacDsp
 {
-template <size_t MaxSizePerElement, size_t MAXORDER>
+template <size_t MaxSizePerElement, size_t MAXORDER, size_t BlockSize>
 class FdnTank
 {
     static constexpr size_t processingSize = 16;
-    static constexpr size_t NumPitchDelays = 4;
+    static constexpr size_t NumPitchDelays = 2;
     static constexpr size_t MaxSpecialFilters = 4;
 
   public:
@@ -85,16 +86,16 @@ class FdnTank
 
     void setPitch(size_t index, const float value)
     {
-        // m_pitch[index] = std::abs(value) < 0.01f ? 0.f : value;
-        // m_octaveDelay[index].setPitch(value);
-        // m_usePitch = false;
-        // for (const auto& p : m_pitch)
-        // {
-        //     if (p != 0.0f)
-        //     {
-        //         m_usePitch = true;
-        //     }
-        // }
+        m_pitch[index] = std::abs(value) < 0.01f ? 0.f : value;
+        m_fusedPitch[index].setPitch(value);
+        m_usePitch = false;
+        for (const auto& p : m_pitch)
+        {
+            if (p != 0.0f)
+            {
+                m_usePitch = true;
+            }
+        }
     }
 
 
@@ -182,6 +183,10 @@ class FdnTank
 
     void setDirectSize(const size_t index, const size_t value)
     {
+        if (index >= m_order)
+        {
+            return;
+        }
         m_currentWidth[index] = value;
         m_delay[index].setSize(value);
         m_basicDelay[index].setSize(value);
@@ -218,13 +223,12 @@ class FdnTank
         {
             ensureUniqueDiscreteSize(m_discreteSize.data(), m_order);
         }
+        size_t sum = 0;
         for (size_t i = 0; i < m_order; ++i)
         {
             setDirectSize(i, m_discreteSize[i]);
-            // auto sz = setSize(i, m_meters[i]);
-            std::cout << i << ":\t" << m_meters[i] << "\t" << m_discreteSize[i] << std::endl;
+            sum += m_discreteSize[i];
         }
-        std::cout << std::endl;
     }
 
     void setPitchReverse(bool value)
@@ -348,7 +352,11 @@ class FdnTank
     }
 
     void setReversePitch(const float value)
-    { // m_v=value;
+    {
+        for (auto& pd : m_fusedPitch)
+        {
+            pd.setReverse(value);
+        }
     }
 
 
@@ -358,11 +366,13 @@ class FdnTank
     }
 
     void setPitch1Inplace(const float value)
-    { // m_v=value;
+    {
+        setPitch(0, value);
     }
 
     void setPitch2Inplace(const float value)
-    { // m_v=value;
+    {
+        setPitch(1, value);
     }
 
 
@@ -370,30 +380,46 @@ class FdnTank
     {
         hadamardFeed(m_order, m_lastValue.data(), m_feedValue.data());
 
-        // if (m_usePitch)
-        // {
-        //     size_t indexS{0};
-        //     for (size_t s = 0; s < m_order - NumPitchDelays; ++s, ++indexS)
-        //     {
-        //         m_lastValue[indexS] = m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]);
-        //     }
-        //     std::array<float, NumPitchDelays> pitchOut{};
-        //     for (size_t s = 0; s < m_pitch.size() && s < m_order; ++s, ++indexS)
-        //     {
-        //         if (m_pitch[s] != 0.f)
-        //         {
-        //             pitchOut[s] = m_octaveDelay[s].step(in - m_feedValue[indexS] * m_gain[indexS]);
-        //             m_lastValue[indexS] =
-        //                 pitchOut[s] * m_pitchStrength +
-        //                 m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]) * (1 - m_pitchStrength);
-        //         }
-        //         else
-        //         {
-        //             m_lastValue[indexS] = m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]);
-        //         }
-        //     }
-        // }
-        // else
+        if (m_usePitch)
+        {
+            size_t indexS{0};
+            if (!m_useFusedPitch)
+            {
+                const float inPitched = in + m_pitchStrength * (m_fusedPitch[0].step(in) + m_fusedPitch[1].step(in));
+                for (size_t s = 0; s < m_order - m_countModulation; ++s)
+                {
+                    m_lastValue[s] = m_basicDelay[s].step(inPitched - m_feedValue[s] * m_gain[s]);
+                }
+                for (size_t s = 0; s < m_countModulation; ++s)
+                {
+                    m_lastValue[m_order - 1 - s] =
+                        m_delay[s].step(inPitched - m_feedValue[m_order - 1 - s] * m_gain[m_order - 1 - s]);
+                }
+            }
+            else
+            {
+                for (size_t s = 0; s < m_order - NumPitchDelays; ++s, ++indexS)
+                {
+                    m_lastValue[indexS] = m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]);
+                }
+                std::array<float, NumPitchDelays> pitchOut{};
+                for (size_t s = 0; s < m_pitch.size() && s < m_order; ++s, ++indexS)
+                {
+                    if (m_pitch[s] != 0.f)
+                    {
+                        pitchOut[s] = m_fusedPitch[s].step(in - m_feedValue[indexS] * m_gain[indexS]);
+                        m_lastValue[indexS] =
+                            pitchOut[s] * m_pitchStrength +
+                            m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]) * (1 - m_pitchStrength);
+                    }
+                    else
+                    {
+                        m_lastValue[indexS] = m_delay[indexS].step(in - m_feedValue[indexS] * m_gain[indexS]);
+                    }
+                }
+            }
+        }
+        else
         {
             for (size_t s = 0; s < m_order - m_countModulation; ++s)
             {
@@ -422,7 +448,19 @@ class FdnTank
         //     m_lastValue[idx] = m_hp[idx].step(m_lastValue[idx]);
         // }
     }
-
+    void processBlock(const float* in, float* out)
+    {
+        for (uint32_t pos = 0; pos < BlockSize; pos++)
+        {
+            matrixFeed(in[pos]);
+            float result = 0.0f;
+            for (size_t s = 0; s < m_order; ++s)
+            {
+                result += m_lastValue[s];
+            }
+            out[pos] = result;
+        }
+    }
     void processBlock(const float* in, float* out, const uint32_t numSamples)
     {
         for (uint32_t pos = 0; pos < numSamples; pos++)
@@ -527,10 +565,10 @@ class FdnTank
     std::array<float, MAXORDER> m_gain{};
     std::array<SimpleDelay, MAXORDER> m_basicDelay;
     std::array<ModDelay, MAXORDER> m_delay;
-    // std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_octaveDelay{};
+    std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_fusedPitch{};
+    std::array<PitchFadeWindowDelay<MaxSizePerElement>, NumPitchDelays> m_feedPitch{};
     std::array<LowPassFilter, MaxSpecialFilters> m_lp;
     std::array<HighPassFilter, MaxSpecialFilters> m_hp;
-
 
     size_t m_countAllpass{0};
     size_t m_countLowpass{0};
@@ -541,6 +579,7 @@ class FdnTank
     bool m_avoidEqualLengthDelay{false};
     float m_spreadLines{0.f};
     bool m_usePitch{false};
+    bool m_useFusedPitch{true};
     bool m_reversePitch{false};
     float m_pitchStrength{0.5f};
     std::array<float, NumPitchDelays> m_pitch{};

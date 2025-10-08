@@ -116,3 +116,4 @@ add_custom_target(run_unit_tests
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Building and running all unit tests"
 )
+

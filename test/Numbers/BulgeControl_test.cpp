@@ -3,7 +3,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 
-namespace AbacDsp::TEST
+namespace AbacDsp::Test
 {
 
 class FillTableTest : public ::testing::TestWithParam<std::tuple<float, std::vector<int>>>
