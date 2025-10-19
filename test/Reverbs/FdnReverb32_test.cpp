@@ -220,7 +220,6 @@ TEST(FdnReverb32, checkSimd)
     for (size_t j = 0; j < 16 * 2 - 1; ++j)
     {
         indexExpected++;
-        // std::cout << "0\n";
     }
     for (size_t j = 0; j < 48; ++j)
     {
@@ -232,10 +231,8 @@ TEST(FdnReverb32, checkSimd)
         {
             sut.processBlock(empty.data(), out.data());
         }
-        // std::cout << j << ":" << std::endl;
         for (float value : out)
         {
-            // std::cout << indexExpected++ << "\t" << value << "" << std::endl;
             EXPECT_NEAR(expected[indexExpected++], value, 1E-5f) << j;
         }
     }
@@ -262,7 +259,6 @@ TEST(FdnReverb32, checkSimdWalsh)
     for (size_t j = 0; j < 16 * 2 - 1; ++j)
     {
         indexExpected++;
-        // std::cout << "0\n";
     }
     for (size_t j = 0; j < 48; ++j)
     {
@@ -274,10 +270,8 @@ TEST(FdnReverb32, checkSimdWalsh)
         {
             sut.processBlock(empty.data(), out.data());
         }
-        // std::cout << j << ":" << std::endl;
         for (float value : out)
         {
-            // std::cout << indexExpected++ << "\t" << value << "" << std::endl;
             EXPECT_NEAR(expected[indexExpected++], value, 1E-5f) << j;
         }
     }

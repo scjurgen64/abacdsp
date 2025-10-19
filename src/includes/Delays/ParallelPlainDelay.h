@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <vector>
 #include <cassert>
 
 namespace AbacDsp
@@ -20,19 +21,29 @@ class ParallelPlainDelay
 
     void setSize(const size_t index, const size_t newSize)
     {
-        assert(index < m_read.size());
+        assert(index < m_read[0].size());
         m_currentDelayWidth[index] = std::min(newSize, MAXSIZE - 1);
         m_read[0][index] = m_head + MAXSIZE - m_currentDelayWidth[index];
         while (m_read[0][index] >= m_buffer[index].size())
         {
             m_read[0][index] -= m_buffer[index].size();
         }
+        for (size_t headIdx = 1; headIdx <= m_deltaTaps.size(); ++headIdx)
+        {
+            m_read[headIdx][index] = m_head + MAXSIZE - m_currentDelayWidth[index] + m_deltaTaps[headIdx - 1][index];
+            while (m_read[headIdx][index] >= m_buffer[index].size())
+            {
+                m_read[headIdx][index] -= m_buffer[index].size();
+            }
+        }
     }
 
-    void setRelativeHead(const size_t index, const size_t headIdx, const size_t newSize)
+    // set relative to first read head (will assert if trying on headIdx = 0)
+    void setRelativeHead(const size_t headIdx, const size_t index, const int newDistance)
     {
-        assert(index < m_read.size() && headIdx > 0 && headIdx < m_read.size());
-        m_read[headIdx][index] = m_head - m_currentDelayWidth[index] + MAXSIZE;
+        assert(headIdx > 0 && headIdx < m_read.size() && index < m_read[headIdx].size());
+        m_deltaTaps[headIdx - 1][index] = newDistance;
+        m_read[headIdx][index] = m_head + MAXSIZE - m_currentDelayWidth[index] + m_deltaTaps[headIdx - 1][index];
         while (m_read[headIdx][index] >= m_buffer[index].size())
         {
             m_read[headIdx][index] -= m_buffer[index].size();
@@ -100,8 +111,9 @@ class ParallelPlainDelay
     }
 
   private:
-    alignas(16) std::array<size_t, CHANNELS> m_currentDelayWidth{MAXSIZE / 8};
-    alignas(16) std::array<std::array<size_t, CHANNELS>, NUMREADHEADS> m_read{};
+    alignas(16) std::array<int, CHANNELS> m_currentDelayWidth{MAXSIZE / 8};
+    alignas(16) std::array<std::array<int, CHANNELS>, NUMREADHEADS - 1> m_deltaTaps{};
+    alignas(16) std::array<std::array<int, CHANNELS>, NUMREADHEADS> m_read{};
     alignas(16) std::array<std::vector<float>, CHANNELS> m_buffer;
     size_t m_head{};
 };

@@ -5,9 +5,9 @@
 #include <string>
 #include <memory>
 
-using namespace AbacDsp;
+namespace AbacDsp
+{
 
-// constructor with parameters
 class TestClass
 {
   public:
@@ -53,7 +53,7 @@ class SimpleClass
     int m_value = 42;
 };
 
-// Test fixture class
+
 class ConstructArrayTest : public ::testing::Test
 {
   protected:
@@ -287,4 +287,5 @@ TEST_F(ConstructArrayTest, ArgumentForwarding)
         EXPECT_EQ(element.getString(), testString);
         EXPECT_EQ(element.getValue(), testValue);
     }
+}
 }

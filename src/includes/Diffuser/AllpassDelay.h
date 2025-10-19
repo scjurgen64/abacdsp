@@ -16,6 +16,159 @@
 namespace AbacDsp
 {
 
+template <size_t MaxSize48Khz, size_t BlockSize>
+class AllPassDelay
+{
+  public:
+    static constexpr size_t minDelaySize{
+        51u}; // don't allow delay lines shorter than 51, ( a wall at the distance of 30cm [@ 48kHz] )
+
+    explicit AllPassDelay(float sampleRate)
+        : m_sampleRate(sampleRate)
+        , m_maxBufferSize(static_cast<size_t>(std::round(static_cast<float>(MaxSize48Khz) * sampleRate / 48000.f)))
+        , m_buffer(m_maxBufferSize + 6, 0.f)
+    {
+    }
+
+    void clear()
+    {
+        std::fill(m_buffer.begin(), m_buffer.end(), 0.f);
+    }
+
+    void newFadeIfNeeded()
+    {
+        if (m_newFadeSize && !m_fadeSteps)
+        {
+            m_fadeFactorIn = 0.0f;
+            m_fadeFactorOut = 1.0f;
+            m_fadeSteps = std::min<size_t>(8192, m_currentDelayWidth / 2);
+            m_fadeAdvance = 1.0f / static_cast<float>(m_fadeSteps);
+            m_headRead[1] = (m_headWrite + m_maxBufferSize - m_newFadeSize) % m_maxBufferSize;
+            m_currentDelayWidth = m_newFadeSize;
+        }
+    }
+
+    [[nodiscard]] float getDecayTimeInSamples(const float db = -60.f) const
+    {
+        const auto f = Convert::dbToGain(db);
+        return std::log10(f) * static_cast<float>(m_currentDelayWidth) / std::log10(m_feedback);
+    }
+
+    void setFeedback(const float gain)
+    {
+        m_feedback = std::clamp(gain, -0.99f, 0.99f);
+    }
+
+    void setSize(const size_t newSize)
+    {
+        setSizeImpl<false>(newSize);
+    }
+
+    void setSize(const size_t newSize, const SkipSmoothing_t&)
+    {
+        setSizeImpl<true>(newSize);
+    }
+
+    void feedWrite(const float in)
+    {
+        m_buffer[m_headWrite] = in;
+        if (++m_headWrite >= m_maxBufferSize)
+        {
+            m_headWrite = 0;
+        }
+    }
+
+    float step(const float in)
+    {
+        auto getResult = [this]()
+        {
+            if (m_fadeSteps)
+            {
+                const auto outValue = nextHeadRead(0) * m_fadeFactorOut;
+                const auto inValue = nextHeadRead(1) * m_fadeFactorIn;
+                m_fadeFactorOut -= m_fadeAdvance;
+                m_fadeFactorIn += m_fadeAdvance;
+                if (--m_fadeSteps == 0)
+                {
+                    m_headRead[0] = m_headRead[1];
+                    m_newFadeSize = m_newFadeSizeScheduled;
+                    m_newFadeSizeScheduled = 0;
+                }
+                return outValue + inValue;
+            }
+            return nextHeadRead(0);
+        };
+        const float delayed = getResult();
+        const auto output = -m_feedback * in + delayed;
+        const auto toWrite = in + m_feedback * delayed;
+        feedWrite(toWrite);
+        return output;
+    }
+
+    float nextHeadRead(const size_t index)
+    {
+        const float returnValue = m_buffer[m_headRead[index]];
+        m_headRead[index] = (m_headRead[index] + 1) % m_maxBufferSize;
+        return returnValue;
+    }
+
+    void processBlock(const float* source, float* target)
+    {
+        std::transform(source, source + BlockSize, target, [this](float in) { return step(in); });
+    }
+
+    void processBlockInplace(float* inplace, size_t numSamples)
+    {
+        processBlock(inplace, inplace);
+    }
+
+    [[nodiscard]] size_t size() const
+    {
+        return m_currentDelayWidth;
+    }
+
+  private:
+    template <bool fastSetting>
+    void setSizeImpl(const size_t newSize)
+    {
+        const auto clampedSize = std::clamp<size_t>(newSize, minDelaySize, m_maxBufferSize);
+        if (clampedSize == m_currentDelayWidth)
+        {
+            return;
+        }
+        if constexpr (fastSetting)
+        {
+            m_currentDelayWidth = clampedSize;
+            m_newFadeSizeScheduled = 0;
+            m_newFadeSize = 0;
+            m_headWrite = m_currentDelayWidth;
+            m_headRead[0] = 0;
+            return;
+        }
+        if (m_newFadeSize)
+        {
+            m_newFadeSizeScheduled = clampedSize;
+        }
+        else
+        {
+            m_newFadeSize = clampedSize;
+        }
+    }
+
+    float m_sampleRate;
+    float m_feedback{0.0f};
+    size_t m_headWrite{0};
+    std::array<size_t, 2> m_headRead{0, 0};
+    size_t m_fadeSteps{0};
+    float m_fadeFactorIn{0.0f};
+    float m_fadeFactorOut{0.0f};
+    float m_fadeAdvance{0.0f};
+    size_t m_newFadeSize{0};
+    size_t m_newFadeSizeScheduled{0};
+    size_t m_currentDelayWidth{MaxSize48Khz / 8};
+    size_t m_maxBufferSize{MaxSize48Khz};
+    std::vector<float> m_buffer{};
+};
 
 template <size_t MaxSize48Khz>
 class ModulatingAllPassDelay
@@ -162,12 +315,17 @@ class ModulatingAllPassDelay
                 return nextHeadRead(0);
             }
         };
+        const float delayed = getResult();
+        const auto output = -m_feedback * in + delayed;
+        const auto toWrite = in + m_feedback * delayed;
+        feedWrite(toWrite);
+        return output;
 
-        const float result = getResult();
-        const auto feedDelay = in - result * m_feedback; // N.B. negative feedback
-        const auto ret = feedDelay * m_feedback + result;
-        feedWrite(feedDelay);
-        return ret;
+        // const float result = getResult();
+        // const auto feedDelay = in - result * m_feedback; // N.B. negative feedback
+        // const auto ret = feedDelay * m_feedback + result;
+        // feedWrite(feedDelay);
+        // return ret;
     }
 
     float nextHeadRead(const size_t index)
@@ -380,21 +538,22 @@ class ModulatingAllPassDelayNoSoftAdapt
             m_modulation.tick();
         }
 
-        m_lastValue = nextHeadRead();
+        const float delayed = nextHeadRead();
 
         if (positiveOnly)
         {
-            const auto feedDelay = in + m_lastValue * m_feedback;
-            const auto ret = feedDelay * m_feedback + m_lastValue;
-            feedWrite(feedDelay);
-            return ret;
+            const auto toWrite = in + delayed * m_feedback;
+            const auto output = toWrite * m_feedback + delayed;
+            feedWrite(toWrite);
+            return output;
         }
         else
         {
-            const auto feedDelay = in - m_lastValue * m_feedback; // N.B. negative feedback
-            const auto ret = feedDelay * m_feedback + m_lastValue;
-            feedWrite(feedDelay);
-            return ret;
+            // Schroeder allpass
+            const auto output = -m_feedback * in + delayed;
+            const auto toWrite = in + m_feedback * delayed;
+            feedWrite(toWrite);
+            return output;
         }
     }
 
@@ -475,12 +634,6 @@ class FixedAllpassDelay
         std::fill(m_buffer.begin(), m_buffer.end(), 0.f);
     }
 
-    //    float getDecayTimeInSamples(const float db = -60.f)
-    //    {
-    //        const auto f = dbToGain(db);
-    //        return std::log10(f) * static_cast<float>(m_delaySteps) / std::log10(m_feedback);
-    //    }
-
     void setLowpass(const float value)
     {
         m_lowPass.setCutoff(value);
@@ -553,7 +706,6 @@ class FixedAllpassDelay
     }
 
   private:
-    // float m_sampleRate;
     std::vector<float> m_buffer;
     size_t m_maxSize;
 
