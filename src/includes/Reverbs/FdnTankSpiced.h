@@ -46,32 +46,60 @@ class FdnTankSpiced
     {
         setMinSize(10);
         setMaxSize(20);
-        initItd();
+        initRandomItd();
     }
 
-
-    void initItd()
+    void initUniformItd()
     {
-        // Convert desired ITD range (0.1–1.0 ms) to sample counts
-        const int minSamples = static_cast<int>(std::round(1E-4f * m_sampleRate));
-        const int maxSamples = static_cast<int>(std::round(1E-3f * m_sampleRate));
-
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<int> dist(minSamples, maxSamples);
+        constexpr float maxItdMs = 0.33f;
+        const int maxItdSamples = static_cast<int>(std::round(maxItdMs / 1000.f * m_sampleRate));
 
         for (int i = 0; i < ORDER; ++i)
         {
-            const int left = dist(gen);
-            int right;
-            do
-            {
-                right = dist(gen);
-            } while (right == left); // ensure difference
+            // Map delay index to stereo position: -1 (left) to +1 (right)
+            const float panPos = 2.f * static_cast<float>(i) / static_cast<float>(ORDER - 1) - 1.f;
+            const int itd = static_cast<int>(std::round(panPos * maxItdSamples));
 
-            m_itdTaps[0][i] = left;
-            m_itdTaps[1][i] = right;
+            if (itd > 0)
+            {
+                m_itdTaps[0][i] = 0;
+                m_itdTaps[1][i] = itd;
+            }
+            else
+            {
+                m_itdTaps[0][i] = -itd;
+                m_itdTaps[1][i] = 0;
+            }
         }
+
+        setItdTaps(m_itdTaps);
+    }
+
+    void initRandomItd()
+    {
+        constexpr float maxItdMs = 0.33f; // Half of physiological max
+        const int maxItdSamples = static_cast<int>(std::round(maxItdMs / 1000.f * m_sampleRate));
+
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<int> dist(-maxItdSamples, maxItdSamples);
+
+        for (int i = 0; i < ORDER; ++i)
+        {
+            const int itd = dist(gen);
+
+            if (itd > 0) // Positive: delay right channel (image shifts left)
+            {
+                m_itdTaps[0][i] = 0;
+                m_itdTaps[1][i] = itd;
+            }
+            else // Negative: delay left channel (image shifts right)
+            {
+                m_itdTaps[0][i] = -itd;
+                m_itdTaps[1][i] = 0;
+            }
+        }
+
         setItdTaps(m_itdTaps);
     }
 
@@ -232,8 +260,6 @@ class FdnTankSpiced
             }
         }
         m_delay.processBlock(m_inValue, m_outValue);
-        std::array<std::array<float, BlockSize>, ORDER> decorrelated;
-
         for (uint32_t s = 0; s < BlockSize; s++)
         {
             matrixFeed(s);
@@ -241,7 +267,6 @@ class FdnTankSpiced
             for (size_t o = 0; o < ORDER; ++o)
             {
                 result += m_lastValue[s][o];
-                result += decorrelated[s][o];
             }
             out[s] = result;
         }
@@ -276,8 +301,8 @@ class FdnTankSpiced
             float result = 0.0f;
             for (size_t o = 0; o < ORDER; ++o)
             {
-                left[s] += decorrelatedLeft[s][o];
-                right[s] += decorrelatedRight[s][o];
+                left[s] += decorrelatedLeft[o][s];
+                right[s] += decorrelatedRight[o][s];
             }
         }
     }
@@ -316,7 +341,6 @@ class FdnTankSpiced
     float m_msecs{100.0f};
     DelayWithTaps m_delay{};
 
-    bool m_spreadSymmetric{false};
     bool m_avoidEqualLengthDelay{false};
 };
 }
