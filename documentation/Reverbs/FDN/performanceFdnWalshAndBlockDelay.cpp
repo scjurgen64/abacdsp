@@ -168,15 +168,6 @@ int main(int argc, char* argv[])
 
     std::vector<PerformanceResult> results;
     constexpr size_t BlockSize{16};
-    results.push_back(measurePerformance<AbacDsp::FdnTankRef<48000, 32, BlockSize>>("Tank Reference 32", 32));
-    results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelay<48000, 32, BlockSize>>("Tank blk delay 32", 32));
-    results.push_back(
-        measurePerformance<AbacDsp::FdnTankBlockDelaySIMD<48000, 32, BlockSize>>("Tank blk delaySIMD 32", 32));
-    results.push_back(measurePerformance<AbacDsp::FdnTank<48000, 32, BlockSize>>("Tank modulation 32", 32));
-    results.push_back(
-        measurePerformance<AbacDsp::FdnTankBlockDelaySIMDWalsh<48000, 32, BlockSize>>("FdnTankWalshSIMD 32", 32));
-    results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelayWalsh<48000, 32, BlockSize>>("FdnTankWalsh 32", 32));
-
     results.push_back(measurePerformance<AbacDsp::FdnTankRef<48000, 16, BlockSize>>("Tank Reference 16", 16));
     results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelay<48000, 16, BlockSize>>("Tank blk delay 16", 16));
     results.push_back(
@@ -185,6 +176,15 @@ int main(int argc, char* argv[])
     results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelayWalsh<48000, 16, BlockSize>>("FdnTankWalsh 16", 16));
     results.push_back(
         measurePerformance<AbacDsp::FdnTankBlockDelaySIMDWalsh<48000, 16, BlockSize>>("FdnTankWalsh Simd 16", 16));
+
+    results.push_back(measurePerformance<AbacDsp::FdnTankRef<48000, 32, BlockSize>>("Tank Reference 32", 32));
+    results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelay<48000, 32, BlockSize>>("Tank blk delay 32", 32));
+    results.push_back(
+        measurePerformance<AbacDsp::FdnTankBlockDelaySIMD<48000, 32, BlockSize>>("Tank blk delaySIMD 32", 32));
+    results.push_back(measurePerformance<AbacDsp::FdnTank<48000, 32, BlockSize>>("Tank modulation 32", 32));
+    results.push_back(
+        measurePerformance<AbacDsp::FdnTankBlockDelaySIMDWalsh<48000, 32, BlockSize>>("FdnTankWalshSIMD 32", 32));
+    results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelayWalsh<48000, 32, BlockSize>>("FdnTankWalsh 32", 32));
 
     results.push_back(measurePerformance<AbacDsp::FdnTankRef<48000, 8, BlockSize>>("Tank Reference 8", 8));
     results.push_back(measurePerformance<AbacDsp::FdnTankBlockDelay<48000, 8, BlockSize>>("Tank blk delay 8", 8));

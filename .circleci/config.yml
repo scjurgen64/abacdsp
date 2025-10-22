@@ -1,0 +1,63 @@
+version: 2.1
+
+jobs:
+  build_and_test:
+    docker:
+      - image: gcc:13
+    steps:
+      - checkout
+
+      - run:
+          name: Install CMake
+          command: |
+            apt-get update && apt-get install -y cmake ninja-build
+
+      - run:
+          name: Configure
+          command: |
+            cmake -S . -B build -DBUILD_ONLY_TESTS=ON -DCMAKE_BUILD_TYPE=Release
+
+      - run:
+          name: Build
+          command: |
+            cmake --build build --parallel $(nproc)
+
+      - run:
+          name: Run Tests
+          command: |
+            cd build && ctest --output-on-failure --parallel $(nproc)
+
+      - store_test_results:
+          path: build/Testing
+
+  memory_check:
+    docker:
+      - image: gcc:13
+    steps:
+      - checkout
+
+      - run:
+          name: Install Dependencies
+          command: |
+            apt-get update && apt-get install -y cmake ninja-build valgrind
+
+      - run:
+          name: Configure
+          command: |
+            cmake -S . -B build -DBUILD_ONLY_TESTS=ON -DCMAKE_BUILD_TYPE=Debug
+
+      - run:
+          name: Build
+          command: |
+            cmake --build build --parallel $(nproc)
+
+      - run:
+          name: Valgrind Memory Check
+          command: |
+            cd build && ctest -T memcheck --output-on-failure
+
+workflows:
+  test:
+    jobs:
+      - build_and_test
+      - memory_check

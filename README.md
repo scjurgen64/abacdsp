@@ -1,9 +1,19 @@
 # AbacDsp
+
+
 Dsp code for abacad projects
+
+<!-- Version and License Badges -->
+
+![Version](https://img.shields.io/badge/version-0.0.1-green.svg?style=flat-square)
+![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)
+![Language](https://img.shields.io/badge/language-C++-yellow.svg?style=flat-square)
+
 
 ## Goals
 
 Have handy classes for various DSP tasks.
+Focus on 'artistic' combinations of dsp modules.
 No dependencies for the dsp code it self (examples and unit-test have submodules based code)
 
 ### Submodules used
