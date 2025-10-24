@@ -7,6 +7,12 @@
 namespace AbacDsp
 {
 
+inline size_t getSamplesPerMillisecond(float milliseconds, float sampleRate, size_t maxValue)
+{
+    auto size = static_cast<size_t>(std::roundf(milliseconds * 0.001f * sampleRate));
+    return std::clamp<size_t>(size, 1, maxValue);
+}
+
 template <size_t Channels, size_t FixedFrameSize, typename ExternalBufferType>
 class FixedSizeProcessor
 {

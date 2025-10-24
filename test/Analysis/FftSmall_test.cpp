@@ -154,4 +154,4 @@ TEST_F(BasicFFTTest, EmptyInputHandling)
     EXPECT_TRUE(magnitude.empty());
 }
 
-} // namespace AbacDsp
+}

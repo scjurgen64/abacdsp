@@ -28,8 +28,6 @@ class Wow
         , m_depthLowpass(sampleRate)
         , m_ouProcess(sampleRate)
         , m_rng(std::random_device{}())
-    //, m_rateSmoothed(1.f)
-
     {
         m_rateSmoothed.newTransition(1.f, defaultSmoothingTime, m_sampleRate, true);
         m_varianceSmoothed.newTransition(0.0f, defaultSmoothingTime, m_sampleRate, true);
@@ -121,7 +119,58 @@ class Wow
         const auto delayDerivative = (currentDelay - m_previousDelay) * m_sampleRate / 1000.0f;
         m_previousDelay = currentDelay;
 
-        return 1.0f + delayDerivative;
+        m_lastValue = 1.0f + delayDerivative;
+        return m_lastValue;
+    }
+
+    float stepNormalized() noexcept
+    {
+        if (!m_varianceSmoothed.hasStoppedSmoothing())
+        {
+            m_ouProcess.setSigma(m_varianceSmoothed.getValue());
+        }
+
+        auto rate = m_rateSmoothed.getValue();
+        auto depth = m_depthLowpass.step(m_depth);
+
+        if (m_drift > 0.0f)
+        {
+            // Stochastic drift: low-frequency random walk with mean reversion
+            // This creates slow, correlated changes rather than pure sinusoidal drift
+            const auto driftNoise = m_uniformDist(m_rng) * 0.002f; // Very small random steps
+            const auto meanReversion = -m_driftState / m_driftTimeConstant * m_invSampleRate;
+
+            m_driftState += driftNoise + meanReversion;
+            m_driftState = std::clamp(m_driftState, -0.1f, 0.1f);
+            const auto driftModulation = 1.0f + m_drift * m_driftState;
+            rate *= driftModulation;
+        }
+        const auto angleDelta = std::numbers::pi_v<float> * 2.0f * rate * m_invSampleRate;
+        m_phase += angleDelta;
+
+        while (m_phase >= std::numbers::pi_v<float> * 2.0f)
+        {
+            m_phase -= std::numbers::pi_v<float> * 2.0f;
+        }
+
+        const auto ouValue = m_ouProcess.step();
+        const auto filteredOU = m_lowpass.step(ouValue);
+
+        const auto currentDelay = depth * (std::sin(m_phase) + filteredOU);
+
+        // Calculate derivative for speed factor
+        // Speed factor = 1 + d(delay)/dt
+        // For discrete time: d(delay)/dt ≈ (current - previous) * sampleRate / 1000
+        const auto delayDerivative = (currentDelay - m_previousDelay) * m_sampleRate / 1000.0f;
+        m_previousDelay = currentDelay;
+
+        m_lastValue = delayDerivative;
+        return m_lastValue;
+    }
+
+    [[nodiscard]] float getLast() const noexcept
+    {
+        return m_lastValue;
     }
 
   private:
@@ -134,7 +183,7 @@ class Wow
     float m_depth{1.f};
     //    LinearSmoothing m_depthSmoothed;
     LinearSmoothing m_varianceSmoothed;
-    float m_drift;
+    float m_drift{};
 
     float m_phase{0.0f};
     float m_driftPhase{0.0f};         // Separate phase for drift oscillation
@@ -144,6 +193,7 @@ class Wow
 
     float m_amp{0.0f};
     float m_previousDelay{0.0f};
+    float m_lastValue{1};
 
     OnePoleFilter<OnePoleFilterCharacteristic::LowPass, false> m_lowpass;
     OnePoleFilter<OnePoleFilterCharacteristic::LowPass, false> m_depthLowpass;

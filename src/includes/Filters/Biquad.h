@@ -11,7 +11,32 @@
 #include <tuple>
 
 #include "Numbers/Convert.h"
+/*
+enum class BiquadFilterType
+{
+    LowPass,
+    HighPass,
+    BandPass,
+    Notch,
+    Peak,
+    LoShelf,
+    HiShelf,
+    AllPass,
+};
 
+template <BiquadFilterType type>
+class Biquad::
+    void computeCoefficients(const float sampleRate, const float frequency, const float Q, const float peakGain);
+    void processBlock(const float* in, float* outBuffer, size_t numSamples);
+
+template <BiquadFilterType type>
+class BiquadStereo::
+{
+    void computeCoefficients(const float sampleRate, const float frequency, const float Q, const float peakGain);
+    void processBlock(const float* left, const float* right, float* outLeft, float* outRight, size_t numSamples);
+ }
+
+ */
 
 namespace AbacDsp
 {

@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
-#include "Parameters/LinearParameter.h" // Assume this is the header file for our parameter class
+#include "Parameters/LinearParameter.h"
 
 namespace AbacDsp::Test
 {

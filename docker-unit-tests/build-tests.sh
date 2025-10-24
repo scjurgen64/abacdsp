@@ -3,6 +3,9 @@
 set -ex
 
 cd /build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -B /build /root/project
+
+# Build only tests without JUCE examples to avoid GUI dependencies
+cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_ONLY_TESTS=ON -B /build /root/project
+
 ninja unit_tests
 
