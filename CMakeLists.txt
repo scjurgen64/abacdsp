@@ -62,3 +62,8 @@ option(PERFORMANCE_TESTS "Build performance tests" ON)
 if (PERFORMANCE_TESTS)
 add_subdirectory(documentation/Reverbs/FDN)
 endif()
+
+option(EXPLORE_STUFF "Explore" ON)
+if (EXPLORE_STUFF)
+    add_subdirectory(documentation/Filters/BandpassImpulses)
+endif()

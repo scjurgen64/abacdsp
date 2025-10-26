@@ -1,16 +1,16 @@
 #pragma once
 
-#include <vector>
 #include <algorithm>
-#include <numeric>
 #include <cmath>
-#include <iostream>
 #include <iomanip>
+#include <iostream>
+#include <numeric>
 #include <string>
-#include <sstream>
+#include <vector>
 
 namespace AbacDsp
 {
+
 template <typename T>
 class SimpleStats
 {
@@ -30,6 +30,11 @@ class SimpleStats
         m_count = 0;
         m_dirty = true;
         m_mean = m_variance = m_min = m_max = 0;
+    }
+
+    void setPrecision(const int points)
+    {
+        m_precision = points;
     }
 
     double getMean()
@@ -92,7 +97,7 @@ class SimpleStats
     }
 
     // Percentile calculation (0.0 to 1.0)
-    double getPercentile(double p)
+    double getPercentile(const double p)
     {
         if (m_dirty)
         {
@@ -102,19 +107,15 @@ class SimpleStats
         {
             return 0.0;
         }
-
         auto sorted = m_dataPoints;
         std::sort(sorted.begin(), sorted.end());
-
         const auto index = p * (sorted.size() - 1);
         const auto lower = static_cast<size_t>(std::floor(index));
         const auto upper = static_cast<size_t>(std::ceil(index));
-
         if (lower == upper)
         {
             return sorted[lower];
         }
-
         const auto weight = index - lower;
         return sorted[lower] * (1.0 - weight) + sorted[upper] * weight;
     }
@@ -140,7 +141,7 @@ class SimpleStats
     }
 
     // Check if value is an outlier using IQR method
-    bool isOutlier(T value, double multiplier = 1.5)
+    bool isOutlier(const T value, const double multiplier = 1.5)
     {
         if (m_dirty)
         {
@@ -154,28 +155,87 @@ class SimpleStats
         return static_cast<double>(value) < lower || static_cast<double>(value) > upper;
     }
 
-    // Statistical summary with stream support
-    void printSummary(std::ostream& os, const std::string& name = "") const
+    // Root Mean Square Error from target value
+    double getRMSE(const double target = 0.0)
+    {
+        if (m_dirty)
+        {
+            compute();
+        }
+        auto sum_squared_error = 0.0;
+        for (const auto value : m_dataPoints)
+        {
+            const auto error = value - target;
+            sum_squared_error += error * error;
+        }
+        return std::sqrt(sum_squared_error / m_dataPoints.size());
+    }
+
+    // Mean Absolute Error from target value
+    double getMAE(const double target = 0.0)
+    {
+        if (m_dirty)
+        {
+            compute();
+        }
+        auto sum_abs_error = 0.0;
+        for (const auto value : m_dataPoints)
+        {
+            sum_abs_error += std::abs(value - target);
+        }
+        return sum_abs_error / m_dataPoints.size();
+    }
+
+    // Statistical summary with stream support (vertical layout)
+    void printSummary(std::ostream& os, const std::string& name = "", const double target = 1.0) const
     {
         if (!name.empty())
         {
             os << name << " Statistics:\n";
         }
-        os << std::fixed << std::setprecision(2);
-        os << "  Count: " << m_count << "\n";
-        os << "  Mean: " << const_cast<SimpleStats*>(this)->getMean() << "\n";
+        os << std::fixed << std::setprecision(m_precision);
+        os << "  Count:   " << m_count << "\n";
+        os << "  Mean:    " << const_cast<SimpleStats*>(this)->getMean() << "\n";
         os << "  Std Dev: " << const_cast<SimpleStats*>(this)->getStdDev() << "\n";
-        os << "  Min: " << const_cast<SimpleStats*>(this)->getMin() << "\n";
-        os << "  Max: " << const_cast<SimpleStats*>(this)->getMax() << "\n";
-        os << "  Range: " << const_cast<SimpleStats*>(this)->getRange() << "\n";
-        os << "  Median: " << const_cast<SimpleStats*>(this)->getMedian() << "\n";
-        os << "  Q1: " << const_cast<SimpleStats*>(this)->getQ1() << "\n";
-        os << "  Q3: " << const_cast<SimpleStats*>(this)->getQ3() << "\n";
-        os << "  IQR: " << const_cast<SimpleStats*>(this)->getIQR() << "\n";
+        os << "  Min:     " << const_cast<SimpleStats*>(this)->getMin() << "\n";
+        os << "  Max:     " << const_cast<SimpleStats*>(this)->getMax() << "\n";
+        os << "  Range:   " << const_cast<SimpleStats*>(this)->getRange() << "\n";
+        os << "  Median:  " << const_cast<SimpleStats*>(this)->getMedian() << "\n";
+        os << "  Q1:      " << const_cast<SimpleStats*>(this)->getQ1() << "\n";
+        os << "  Q3:      " << const_cast<SimpleStats*>(this)->getQ3() << "\n";
+        os << "  IQR:     " << const_cast<SimpleStats*>(this)->getIQR() << "\n";
+        os << "  MAE:     " << const_cast<SimpleStats*>(this)->getMAE(target) << "\n";
+        os << "  RMSE:    " << const_cast<SimpleStats*>(this)->getRMSE(target) << "\n";
+    }
+
+    // Print horizontal header for table output
+    void printHorizontalSummaryHeader(std::ostream& os, const std::string& nameHeader = "Name") const
+    {
+        const int fieldWidth = m_precision + 8;
+        os << std::left << std::setw(30) << nameHeader << std::right << std::setw(10) << "Count"
+           << std::setw(fieldWidth) << "Mean" << std::setw(fieldWidth) << "StdDev" << std::setw(fieldWidth) << "Min"
+           << std::setw(fieldWidth) << "Max" << std::setw(fieldWidth) << "Median" << std::setw(fieldWidth) << "MAE"
+           << std::setw(fieldWidth) << "RMSE"
+           << "\n";
+    }
+
+    // Statistical summary with horizontal layout (table row)
+    void printHorizontalSummary(std::ostream& os, const std::string& name = "", const double target = 1.0) const
+    {
+        const int fieldWidth = m_precision + 8;
+        os << std::left << std::setw(30) << name << std::right << std::setw(10) << m_count << std::fixed
+           << std::setprecision(m_precision) << std::setw(fieldWidth) << const_cast<SimpleStats*>(this)->getMean()
+           << std::setw(fieldWidth) << const_cast<SimpleStats*>(this)->getStdDev() << std::setw(fieldWidth)
+           << const_cast<SimpleStats*>(this)->getMin() << std::setw(fieldWidth)
+           << const_cast<SimpleStats*>(this)->getMax() << std::setw(fieldWidth)
+           << const_cast<SimpleStats*>(this)->getMedian() << std::setw(fieldWidth)
+           << const_cast<SimpleStats*>(this)->getMAE(target) << std::setw(fieldWidth)
+           << const_cast<SimpleStats*>(this)->getRMSE(target) << "\n";
     }
 
   private:
     size_t m_count{};
+    int m_precision{6};
     bool m_dirty{true};
     std::vector<double> m_dataPoints{};
     double m_mean{};
@@ -213,4 +273,5 @@ class SimpleStats
         m_dirty = false;
     }
 };
+
 }

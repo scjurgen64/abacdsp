@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(FdnPerformanceTest)
+project(BandpassImpulseExplore)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -13,9 +13,9 @@ include_directories(../../../src/includes)
 
 find_package(Threads REQUIRED)
 
-add_executable(PerformanceFdn PerformanceFdnWalshAndBlockDelay.cpp)
+add_executable(BandpassImpulseExplore BpImpulseExplore.cpp)
 
-target_link_libraries(PerformanceFdn Threads::Threads)
+#target_link_libraries(BandpassImpulseExplore Threads::Threads)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
     if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")

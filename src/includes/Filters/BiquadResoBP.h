@@ -8,6 +8,11 @@
 
 namespace AbacDsp
 {
+
+/*
+ * we have to sets of coefficients, one for normal operation,
+ * one joker, for e.g. fast decay (q=0.1)
+ */
 class BiquadResoBP
 {
     struct BandPassCoefficients
@@ -85,22 +90,22 @@ class BiquadResoBP
         std::transform(in, in + numSamples, outBuffer, [this](const float v) { return step(v); });
     }
 
-    void reset() noexcept
+    void reset(const float v1 = 0.f, const float v2 = 0.f) noexcept
     {
-        m_z[0] = 0.f;
-        m_z[1] = 0.f;
+        m_z[0] = v1;
+        m_z[1] = v2;
     }
 
     float magnitude(const size_t index, const float hz, const float sampleRate = 48000.f) const noexcept
     {
-        const double b0 = static_cast<double>(m_cf[index].b0);
-        const double a1 = static_cast<double>(m_cf[index].a1);
-        const double a2 = static_cast<double>(m_cf[index].a2);
+        const auto b0 = static_cast<double>(m_cf[index].b0);
+        const auto a1 = static_cast<double>(m_cf[index].a1);
+        const auto a2 = static_cast<double>(m_cf[index].a2);
         const auto phi = 4 * std::pow(std::sin(2 * std::numbers::pi_v<double> * hz / sampleRate / 2), 2);
         const auto db =
             10 * std::log10(std::pow((b0 + 0 + -b0), 2) + (b0 * -b0 * phi - (0 * (b0 + -b0) + 4 * b0 * -b0)) * phi) -
             10 * std::log10(std::pow((1.f + a1 + a2), 2) + (a2 * phi - (a1 * (1 + a2) + 4 * a2)) * phi);
-        return db;
+        return static_cast<float>(db);
     }
 
     void damp(const float damp)
