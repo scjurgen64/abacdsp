@@ -16,7 +16,7 @@ void checkCompensationModelForMaxValues()
     for (int n = 12; n <= 120; n += 1)
     {
         const auto freq = Convert::noteToFrequency(static_cast<float>(n));
-        bp.setByDecay(0, freq, 1.f);
+        bp.setByDecay(0, freq, 1.0f);
         bp.reset(0.f, 1.f / compensateFreq(freq));
 
         const int periodLength = 1 + static_cast<int>(ceil(48000.f / freq));

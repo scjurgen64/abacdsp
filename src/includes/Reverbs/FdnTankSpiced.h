@@ -346,7 +346,6 @@ class FdnTankSpiced
     float m_msecs{100.0f};
     DelayWithTaps m_delay{};
     bool m_avoidEqualLengthDelay{false};
-
     CallbackMgr m_callbacks{};
 };
 
