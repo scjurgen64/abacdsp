@@ -49,7 +49,7 @@ TEST(BiquadResoBPTest, responseDecay)
     }
 }
 
-TEST(BiquadResoBPTest, quickReleaseDaping)
+TEST(BiquadResoBPTest, quickReleaseDamping)
 {
     constexpr float sampleRate{48000.f};
     constexpr float f = 200.f;

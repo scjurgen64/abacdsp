@@ -10,7 +10,7 @@ namespace AbacDsp
 {
 
 /*
- * we have to sets of coefficients, one for normal operation,
+ * we have two sets of coefficients, one for normal operation,
  * one joker, for e.g. fast decay (q=0.1)
  */
 class BiquadResoBP
@@ -108,7 +108,7 @@ class BiquadResoBP
         return static_cast<float>(db);
     }
 
-    void damp(const float damp)
+    void damp(const bool damp)
     {
         m_currentSet = damp ? 1 : 0;
     }
@@ -136,4 +136,5 @@ class BiquadResoBP
     float K{};
     float kSquare{};
 };
+
 }
