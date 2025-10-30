@@ -9,6 +9,39 @@
 
 namespace AbacDsp
 {
+/*
+ * Using size greater equal 40 NumElements, there are huge differences (on ARM and Intel)
+* ARM factor per samples:
+  Par Simd  4                   5.82x
+  Par Simd  8                   2.89x
+  Par Simd  12                  1.93x
+  Par Simd  16                  3.40x
+  Par Simd  20                  3.43x
+  Par Simd  24                  3.43x
+  Par Simd  32                  3.54x
+  ---
+  Par Simd  40                  1.00x
+  Par Simd  48                  1.03x
+  Par Simd  100                 1.00x
+  Par Simd  5000                1.06x
+  Par Simd  10000               1.08x
+
+Intel actually good at 32 :
+  Par Simd  4                   2.21x
+  Par Simd  8                   1.12x
+  Par Simd  12                  1.00x
+  Par Simd  16                  2.55x
+  Par Simd  20                  2.55x
+  Par Simd  24                  2.53x
+---
+  Par Simd  32                  1.10x
+  Par Simd  40                  1.10x
+  Par Simd  48                  1.12x
+  Par Simd  100                 1.11x
+  Par Simd  5000                1.13x
+  Par Simd  10000               1.10x
+
+ */
 
 template <size_t NumElements, size_t BlockSize>
     requires(NumElements % 4 == 0 && NumElements > 0)

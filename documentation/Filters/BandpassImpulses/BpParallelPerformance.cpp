@@ -169,12 +169,16 @@ void runPerfTestsImpl(auto& results, std::index_sequence<Ns...>)
     ((
          [&]<size_t N = Ns>()
          {
-             std::stringstream ss;
-             ss << "Reference " << N;
-             results.push_back(perf<BPReferenceImplementation<N, BlockSize>>(ss.str(), N));
-             std::stringstream ss2;
-             ss2 << "Par Simd  " << N;
-             results.push_back(perf<BiquadResoBpParallelSIMD<N, BlockSize>>(ss2.str(), N));
+             // {
+             //     std::stringstream ss;
+             //     ss << "Reference " << N;
+             //     results.push_back(perf<BPReferenceImplementation<N, BlockSize>>(ss.str(), N));
+             // }
+             {
+                 std::stringstream ss;
+                 ss << "Par Simd  " << N;
+                 results.push_back(perf<BiquadResoBpParallelSIMD<N, BlockSize>>(ss.str(), N));
+             }
          }()),
      ...);
 }
