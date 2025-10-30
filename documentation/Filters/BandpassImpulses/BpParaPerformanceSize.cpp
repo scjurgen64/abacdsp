@@ -66,8 +66,8 @@ class BPReferenceImplementation
 template <typename IMPL>
 PerformanceResult perf(const std::string& name, size_t NumElements)
 {
-    const size_t samples = 500'000'000;
-    std::cout << "Testing " << name << "\t" << samples << "x " << NumElements << " ... " << std::flush;
+    const size_t runs = 500'000'000 / NumElements;
+    std::cout << "Testing " << name << "\t" << runs << "x " << NumElements << " ... " << std::flush;
 
     IMPL sut{48000.f};
     for (size_t i = 0; i < NumElements; ++i)
@@ -82,7 +82,7 @@ PerformanceResult perf(const std::string& name, size_t NumElements)
     double chksum = 0; // force compiler to get some result
     // Actual measurement
     auto start = std::chrono::high_resolution_clock::now();
-    for (size_t j = 0; j < samples / NumElements; ++j)
+    for (size_t j = 0; j < runs; ++j)
     {
         sut.process(in.data(), out.data());
     }
@@ -94,10 +94,9 @@ PerformanceResult perf(const std::string& name, size_t NumElements)
     PerformanceResult result;
     result.m_name = name;
     result.m_totalTimeMs = duration.count() / 1e6;
-    result.m_averageTimeNs = static_cast<double>(duration.count()) / samples;
-    result.m_runs = samples;
-    result.m_numElements = 1;
-
+    result.m_averageTimeNs = static_cast<double>(duration.count()) / runs;
+    result.m_runs = runs;
+    result.m_numElements = NumElements;
     std::cout << result.m_totalTimeMs << "ms\n";
 
     return result;
@@ -169,12 +168,8 @@ void runPerfTestsImpl(auto& results, std::index_sequence<Ns...>)
     ((
          [&]<size_t N = Ns>()
          {
-             std::stringstream ss;
-             ss << "Reference " << N;
-             results.push_back(perf<BPReferenceImplementation<N, BlockSize>>(ss.str(), N));
-             std::stringstream ss2;
-             ss2 << "Par Simd  " << N;
-             results.push_back(perf<BiquadResoBpParallelSIMD<N, BlockSize>>(ss2.str(), N));
+             // results.push_back(perf<BPReferenceImplementation<N, BlockSize>>("Reference", N));
+             results.push_back(perf<BiquadResoBpParallelSIMD<N, BlockSize>>("Par SIMD ", N));
          }()),
      ...);
 }
@@ -192,10 +187,15 @@ int main(int argc, char* argv[])
 {
     using namespace AbacDsp::Test;
 
+
     std::cout << "Starting Biquad Bandpass Performance Test...\n";
+
+
     std::vector<PerformanceResult> results;
-    runPerfTests(results, std::integer_sequence<size_t, 4, 8, 12, 16, 20, 24, 32, 40, 48, 64, 100, 128, 256, 500, 1000,
-                                                1024, 2000, 2048, 3000, 4000, 5000, 6000, 10000>{});
+
+    runPerfTests(results, std::integer_sequence<size_t, 4, 8, 12, 16, 24, 32, 48, 64, 100, 128, 256, 500, 1000, 1024,
+                                                2000, 2048, 3000, 4000, 5000, 6000, 10000>{});
     printAllResults(results);
+
     return 0;
 }
