@@ -45,13 +45,15 @@ class BiquadResoBP
 
     void setByDecay(const size_t index, const float frequency, const float t)
     {
-        constexpr auto k = 0.1447648273f; // 1.f / std::log(1000.f); //  1/6.9078f
+        m_decayMax = static_cast<int>(m_sampleRate * t);
+        constexpr auto k = 0.1447648273f;
         float Q = std::numbers::pi_v<float> * frequency * t * k;
         computeCoefficients(index, frequency, Q);
     }
 
     void setDecay(const size_t index, const float t)
     {
+        m_decayMax = static_cast<int>(m_sampleRate * t * 0.001f);
         constexpr auto k = 0.1447648273f; // 1.f / std::log(1000.f); //  1/6.9078f
         const float Q = std::numbers::pi_v<float> * m_frequency * t * k;
         const auto kqCl = K / std::max(Q, 0.01f);
@@ -85,9 +87,22 @@ class BiquadResoBP
         return out;
     }
 
+    float step0() noexcept
+    {
+        const auto out = m_z[0];
+        m_z[0] = m_z[1] - m_cf[m_currentSet].a1 * out;
+        m_z[1] = -m_cf[m_currentSet].a2 * out;
+        return out;
+    }
+
     void process(const float* in, float* outBuffer, const size_t numSamples) noexcept
     {
         std::transform(in, in + numSamples, outBuffer, [this](const float v) { return step(v); });
+    }
+
+    void process0(float* outBuffer, const size_t numSamples) noexcept
+    {
+        std::generate_n(outBuffer, numSamples, [this] { return step0(); });
     }
 
     void reset(const float v1 = 0.f, const float v2 = 0.f) noexcept
@@ -96,7 +111,7 @@ class BiquadResoBP
         m_z[1] = v2;
     }
 
-    float magnitude(const size_t index, const float hz, const float sampleRate = 48000.f) const noexcept
+    [[nodiscard]] float magnitude(const size_t index, const float hz, const float sampleRate = 48000.f) const noexcept
     {
         const auto b0 = static_cast<double>(m_cf[index].b0);
         const auto a1 = static_cast<double>(m_cf[index].a1);
@@ -115,7 +130,11 @@ class BiquadResoBP
 
     bool isActive() noexcept
     {
-        if (std::abs(m_z[0]) > 1E-5f || std::abs(m_z[1]) > 1E-5f)
+        if (m_decayCount > 0)
+        {
+            return true;
+        }
+        if (std::abs(m_z[0]) > 1E-6f || std::abs(m_z[1]) > 1E-6f)
         {
             m_inActiveCount = 0;
         }
@@ -126,8 +145,15 @@ class BiquadResoBP
         return m_inActiveCount < 32;
     }
 
+    void triggered()
+    {
+        m_decayCount = m_decayMax;
+    }
+
   private:
     size_t m_currentSet{0};
+    int m_decayCount{0};
+    int m_decayMax{0};
     int m_inActiveCount{0};
     std::array<BandPassCoefficients, 2> m_cf{};
     std::array<float, 2> m_z{};

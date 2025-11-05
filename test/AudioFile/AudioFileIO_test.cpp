@@ -2,7 +2,7 @@
 #include "gtest/gtest.h"
 #include "gmock/gmock.h"
 
-#include "AudioFile/AudioFileIO.h"
+#include "AudioFile/SaveWav.h"
 
 #include <cstring>
 

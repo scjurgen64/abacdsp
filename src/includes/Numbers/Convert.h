@@ -4,6 +4,8 @@
 #include <numbers>
 #include <numeric>
 
+#include "Numbers/Approximation.h"
+
 namespace Convert
 {
 template <std::floating_point T>
@@ -20,15 +22,14 @@ void getPanFactor(const T angleInPercent, T& left, T& right)
 template <std::floating_point T>
 void getPanFactorNormalized(const T angleNormalized, T& left, T& right)
 {
-    const T f = static_cast<T>(std::sqrt(T(2)) / T(2));
+    constexpr T f = static_cast<T>(0.7071067811865476);
 
-    T angle = angleNormalized * T(std::numbers::pi / 4);
-    T cosVal = std::cos(angle);
-    T sinVal = std::sin(angle);
+    const T angle = angleNormalized * static_cast<T>(std::numbers::pi / 4);
+    const T cosVal = Approximation::remezCosP6<Approximation::DomainMinusPiHalfToPiHalf>(static_cast<float>(angle));
+    const T sinVal = Approximation::remezSinP5<Approximation::DomainMinusPiHalfToPiHalf>(static_cast<float>(angle));
     left = f * (cosVal - sinVal);
     right = f * (cosVal + sinVal);
 }
-
 
 template <std::floating_point T>
 [[nodiscard]] static T dbToGain(T dB)

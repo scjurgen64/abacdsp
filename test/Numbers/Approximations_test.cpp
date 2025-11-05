@@ -1,4 +1,4 @@
-#include "Numbers/Approximations.h"
+#include "Numbers/Approximation.h"
 
 #include <gtest/gtest.h>
 #include <cmath>

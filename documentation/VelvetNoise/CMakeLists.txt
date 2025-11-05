@@ -13,9 +13,8 @@ if (CMAKE_BUILD_TYPE STREQUAL "Release")
     find_package(Threads REQUIRED)
 endif ()
 
-add_executable(BandpassImpulseExplore BpImpulseExplore.cpp)
-add_executable(BandpassImpulsePerformance BpParallelPerformance.cpp)
-add_executable(ResoVoiceExplore ResoVoiceExplore.cpp)
+add_executable(VelvetNoise VelvetNoise.cpp)
+
 
 #target_link_libraries(BandpassImpulseExplore Threads::Threads)
 

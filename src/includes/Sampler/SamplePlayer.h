@@ -53,58 +53,6 @@ class AudiofileIO
     }
 };
 
-class BasicSamplePlayer
-{
-  public:
-    void run(const float* data, const size_t size, const float gain)
-    {
-        m_size = size;
-        m_data = data;
-        m_gain = gain;
-        m_currentPlayoutPos = 0;
-    }
-
-    void processBlock(float* targetAddLeft, float* targetAddRight, const size_t numSamples)
-    {
-        if (m_data == nullptr)
-        {
-            return;
-        }
-        if (m_currentPlayoutPos + numSamples * 2 < m_size)
-        {
-            for (size_t i = 0; i < numSamples; ++i)
-            {
-                targetAddLeft[i] += m_data[m_currentPlayoutPos++] * m_gain;
-                targetAddRight[i] += m_data[m_currentPlayoutPos++] * m_gain;
-            }
-        }
-        else
-            for (size_t i = 0; i < numSamples; ++i)
-            {
-                if (m_currentPlayoutPos < m_size)
-                {
-                    targetAddLeft[i] += m_data[m_currentPlayoutPos++] * m_gain;
-                    targetAddRight[i] += m_data[m_currentPlayoutPos++] * m_gain;
-                }
-                else
-                {
-                    m_data = nullptr;
-                    return;
-                }
-            }
-    }
-
-    [[nodiscard]] bool isDone() const
-    {
-        return m_data == nullptr;
-    }
-
-    float m_gain{1.f};
-    const float* m_data{nullptr};
-    size_t m_currentPlayoutPos{0};
-    size_t m_size{0};
-};
-
 
 template <size_t MaxVoices>
 class SamplePlayer
@@ -215,15 +163,15 @@ class Instrument
                      static_cast<int>(i + 1));
             if (AudiofileIO::loadStereoWaveFileAlloc(sampleFileName, m_sample[i]))
             {
-                print_log("loaded %s %ld", sampleFileName, m_sample[i].size() / 2);
+                //   print_log("loaded %s %ld", sampleFileName, m_sample[i].size() / 2);
             }
             else
             {
-                print_log("could not load %s", sampleFileName);
+                //     print_log("could not load %s", sampleFileName);
             }
         }
         m_loadingComplete = true;
-        print_log("loading completed");
+        // print_log("loading completed");
         callback();
     }
 
@@ -245,8 +193,6 @@ class Instrument
         }
         return &m_sample[pIndex];
     }
-
-
     size_t m_roundRobin{0};
 
     std::vector<float> empty{};

@@ -8,7 +8,7 @@
 
 namespace AudioUtility
 {
-class FileOut
+class SaveWav
 {
   public:
     static AudioFile<float> MonoToAudioFile(const std::span<const float>& data, const float sampleRate = 48000.f)

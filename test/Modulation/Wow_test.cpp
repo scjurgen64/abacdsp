@@ -9,7 +9,7 @@
 
 #include "Analysis/SimpleStats.h"
 #include "Analysis/ZeroCrossings.h"
-#include "AudioFile/AudioFileIO.h"
+#include "AudioFile/SaveWav.h"
 #include "Modulation/Wow.h"
 
 namespace AbacDsp::Test

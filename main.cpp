@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "AudioFile/AudioFileIO.h"
+#include "AudioFile/SaveWav.h"
 #include "NaiveGenerators/Generator.h"
 
 #include <vector>
