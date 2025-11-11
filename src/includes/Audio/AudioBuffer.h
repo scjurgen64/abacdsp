@@ -1,16 +1,78 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <compare>
 #include <span>
-#include <stdexcept>
+
 namespace AbacDsp
 {
+
 template <size_t Channels, size_t NumFrames>
 class AudioBuffer
 {
   public:
     using SampleType = float;
     using Frame = std::array<SampleType, Channels>;
+
+    class FrameProxy
+    {
+      public:
+        explicit FrameProxy(SampleType* ptr)
+            : m_ptr(ptr)
+        {
+        }
+
+        SampleType& operator[](size_t channel)
+        {
+            return m_ptr[channel];
+        }
+
+        const SampleType& operator[](size_t channel) const
+        {
+            return m_ptr[channel];
+        }
+
+        operator Frame() const
+        {
+            Frame frame;
+            std::copy_n(m_ptr, Channels, frame.begin());
+            return frame;
+        }
+
+        FrameProxy& operator=(const Frame& frame)
+        {
+            std::copy_n(frame.begin(), Channels, m_ptr);
+            return *this;
+        }
+
+      private:
+        SampleType* m_ptr;
+    };
+
+    class ConstFrameProxy
+    {
+      public:
+        explicit ConstFrameProxy(const SampleType* ptr)
+            : m_ptr(ptr)
+        {
+        }
+
+        const SampleType& operator[](size_t channel) const
+        {
+            return m_ptr[channel];
+        }
+
+        operator Frame() const
+        {
+            Frame frame;
+            std::copy_n(m_ptr, Channels, frame.begin());
+            return frame;
+        }
+
+      private:
+        const SampleType* m_ptr;
+    };
 
     class FrameIterator
     {
@@ -25,6 +87,7 @@ class AudioBuffer
             : m_ptr(ptr)
         {
         }
+
         explicit FrameIterator(const SampleType* ptr)
             : m_ptr(const_cast<SampleType*>(ptr))
         {
@@ -47,17 +110,20 @@ class AudioBuffer
             m_ptr += Channels;
             return *this;
         }
+
         FrameIterator operator++(int)
         {
             auto tmp = *this;
             ++(*this);
             return tmp;
         }
+
         FrameIterator& operator--()
         {
             m_ptr -= Channels;
             return *this;
         }
+
         FrameIterator operator--(int)
         {
             auto tmp = *this;
@@ -149,6 +215,7 @@ class AudioBuffer
     {
         return NumFrames;
     }
+
     [[nodiscard]] constexpr size_t numChannels() const
     {
         return Channels;
@@ -164,18 +231,31 @@ class AudioBuffer
         return m_data[frame * Channels + channel];
     }
 
+    FrameProxy operator[](size_t frame)
+    {
+        return FrameProxy(m_data.data() + frame * Channels);
+    }
+
+    ConstFrameProxy operator[](size_t frame) const
+    {
+        return ConstFrameProxy(m_data.data() + frame * Channels);
+    }
+
     FrameIterator begin()
     {
         return FrameIterator(m_data.data());
     }
+
     FrameIterator end()
     {
         return FrameIterator(m_data.data() + m_data.size());
     }
+
     auto cbegin() const
     {
         return FrameIterator(m_data.data());
     }
+
     auto cend() const
     {
         return FrameIterator(m_data.data() + m_data.size());
@@ -233,4 +313,5 @@ using QuadAudioBuffer = AudioBuffer<4, NumFrames>;
 
 template <size_t NumFrames>
 using CH51AudioBuffer = AudioBuffer<6, NumFrames>;
-}
+
+} // namespace AbacDsp

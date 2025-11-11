@@ -9,7 +9,11 @@
 
 namespace AbacDsp
 {
-
+/*
+ * Usage:
+ * std::vector<float> signal;
+ * const auto stats = AbacDsp::calculateZeroCrossingStatistics(signal.data(), signal.size(), true);
+ */
 struct ZeroCrossingStatistics
 {
     float meanPeriodLen{0.0f};
@@ -165,7 +169,7 @@ inline ZeroCrossingStatistics calculateZeroCrossingStatistics(
 }
 
 template <std::floating_point T>
-inline ZeroCrossingStatistics calculateZeroCrossingStatistics(const T* data, const size_t size, bool removeDC)
+inline ZeroCrossingStatistics calculateZeroCrossingStatistics(const T* data, const size_t size, const bool removeDC)
 {
     if (!removeDC)
     {
@@ -174,6 +178,33 @@ inline ZeroCrossingStatistics calculateZeroCrossingStatistics(const T* data, con
 
     const T dc = calculateDC(data, size);
     return calculateZeroCrossingStatistics(data, size, [dc](T x) { return x - dc; });
+}
+
+template <std::floating_point T>
+inline ZeroCrossingStatistics calculateZeroCrossingStatistics(std::vector<T> signal, const bool removeDC)
+{
+    if (!removeDC)
+    {
+        return calculateZeroCrossingStatistics(signal.data(), signal.size(), [](T x) { return x; });
+    }
+
+    const T dc = calculateDC(signal.data(), signal.size());
+    return calculateZeroCrossingStatistics(signal.data(), signal.size(), [dc](T x) { return x - dc; });
+}
+
+template <std::floating_point T>
+inline ZeroCrossingStatistics calculateZeroCrossingStatistics(std::contiguous_iterator auto first,
+                                                              std::contiguous_iterator auto last, const bool removeDC)
+{
+    if (!removeDC)
+    {
+        return calculateZeroCrossingStatistics(std::to_address(first), std::ranges::distance(first, last),
+                                               [](T x) { return x; });
+    }
+
+    const T dc = calculateDC(std::to_address(first), std::ranges::distance(first, last));
+    return calculateZeroCrossingStatistics(std::to_address(first), std::ranges::distance(first, last),
+                                           [dc](T x) { return x - dc; });
 }
 
 }

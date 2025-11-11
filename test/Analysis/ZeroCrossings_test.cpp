@@ -103,7 +103,7 @@ TEST(ZeroCrossingsTest, statisticsModulatedFrequency)
         modulationPhase += modulationPhaseIncrement;
     }
 
-    const auto stats = calculateZeroCrossingStatistics(wave.data(), wave.size(), [](const float in) { return in; });
+    const auto stats = calculateZeroCrossingStatistics(wave, [](const float in) { return in; });
 
     constexpr auto expectedMean = sampleRate / centerFrequency;
     EXPECT_NEAR(stats.meanPeriodLen, expectedMean, 0.1f);

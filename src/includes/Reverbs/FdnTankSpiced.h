@@ -207,15 +207,15 @@ class FdnTankSpiced
         computeDelaySizes();
     }
 
-    void setMinSize(const float s)
+    void setMinSize(const float meters)
     {
-        m_warp.minSize = s;
+        m_warp.minSize = meters;
         computeDelaySizes();
     }
 
-    void setMaxSize(const float s)
+    void setMaxSize(const float meters)
     {
-        m_warp.maxSize = s;
+        m_warp.maxSize = meters;
         computeDelaySizes();
     }
 

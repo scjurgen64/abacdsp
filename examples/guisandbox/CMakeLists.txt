@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-set(PROJECT_NAME "Sampleplayer")
+set(PROJECT_NAME "Guisandbox")
 set(FORMATS AU VST3 AUv3 Standalone)
 
 # Check if we're building as part of main project or standalone
@@ -26,33 +26,6 @@ if (NOT TARGET juce::juce_core)
     add_subdirectory(../../3rdparty/JUCE ${CMAKE_CURRENT_BINARY_DIR}/JUCE)
 endif ()
 
-# Fetch libvorbis and dependencies
-include(FetchContent)
-
-FetchContent_Declare(
-        ogg
-        GIT_REPOSITORY https://github.com/xiph/ogg.git
-        GIT_TAG v1.3.6
-        GIT_SHALLOW TRUE
-        #PATCH_COMMAND sed -i.bak "s/cmake_minimum_required(VERSION 2.8.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
-)
-
-FetchContent_Declare(
-        vorbis
-        GIT_REPOSITORY https://github.com/xiph/vorbis.git
-        GIT_TAG v1.3.7
-        GIT_SHALLOW TRUE
-        PATCH_COMMAND sed -i.bak "s/cmake_minimum_required(VERSION 2.8.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
-)
-FetchContent_Declare(
-        nlohmann_json
-        GIT_REPOSITORY https://github.com/nlohmann/json.git
-        GIT_TAG v3.11.3
-        GIT_SHALLOW TRUE
-)
-
-FetchContent_MakeAvailable(ogg vorbis nlohmann_json)
-
 juce_add_plugin("${PROJECT_NAME}"
         VERSION "0.0.0"
         ICON_BIG "logo.png"
@@ -60,15 +33,15 @@ juce_add_plugin("${PROJECT_NAME}"
         COMPANY_NAME "krachpedale"
         COMPANY_WEBSITE "https://krachpedale.de"
         COMPANY_EMAIL "info@krachpedale.de"
-        BUNDLE_ID de.krachpedale.SamplePlayer
+        BUNDLE_ID de.krachpedale.guisandbox
         IS_SYNTH  FALSE
         NEEDS_MIDI_INPUT FALSE
-        NEEDS_MIDI_OUTPUT FALSE
+        NEEDS_MIDI_OUTPUT {NeedsMidiOutput
         IS_MIDI_EFFECT FALSE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE KrPd
-        PLUGIN_CODE ID98
+        PLUGIN_CODE S51C
         FORMATS "${FORMATS}"
         PRODUCT_NAME "${PROJECT_NAME}")
 
@@ -93,8 +66,8 @@ set_target_properties("${PROJECT_NAME}" PROPERTIES FOLDER "")
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR}/src PREFIX "" FILES ${SourceFiles})
 
 # Use unique binary data target name to avoid conflicts
-juce_add_binary_data(SampleplayerAssets SOURCES logo.png)
-set_target_properties(SampleplayerAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+juce_add_binary_data(GuisandboxAssets SOURCES logo.png)
+set_target_properties(GuisandboxAssets PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
 
 # Set folder properties for all formats
 foreach (target ${FORMATS} "All")
@@ -105,7 +78,7 @@ foreach (target ${FORMATS} "All")
                 XCODE_GENERATE_SCHEME ON)
     endif ()
 endforeach ()
-set_target_properties(SampleplayerAssets PROPERTIES FOLDER "Targets")
+set_target_properties(GuisandboxAssets PROPERTIES FOLDER "Targets")
 
 set(JUCE_DEPENDENCIES
         juce::juce_audio_utils
@@ -121,13 +94,8 @@ target_compile_definitions("${PROJECT_NAME}"
 
 target_link_libraries("${PROJECT_NAME}"
         PRIVATE
-        SampleplayerAssets
+        GuisandboxAssets
         ${JUCE_DEPENDENCIES}
-
-        vorbis
-        vorbisfile
-        nlohmann_json::nlohmann_json
-
         PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags

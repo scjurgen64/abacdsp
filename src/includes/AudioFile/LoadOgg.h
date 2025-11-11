@@ -116,7 +116,8 @@ class LoadOgg
         return {left, right};
     }
 
-    static bool loadStereoInterleavedFromFile(const std::string& filename, std::vector<float>& target)
+    static bool loadStereoInterleavedFromFile(const std::string& filename, std::vector<float>& target,
+                                              size_t padding = 2) // padding for resample interpolation
     {
         OggVorbis_File vf;
         if (ov_fopen(filename.c_str(), &vf) < 0)
@@ -128,8 +129,18 @@ class LoadOgg
         if (vi->channels != 2)
         {
             ov_clear(&vf);
-            return false;
+            auto r = loadMonoFromFile(filename);
+            target.resize((r.size() + padding * 2) * 2);
+            std::ranges::fill(target, 0.f);
+            for (size_t i = 0; i < r.size(); ++i)
+            {
+                target[(padding + i) * 2] = r[i];
+                target[(padding + i) * 2 + 1] = r[i];
+            }
+
+            return true;
         }
+
         const auto totalSamples = static_cast<size_t>(ov_pcm_total(&vf, -1));
 
         target.resize(totalSamples * 2);

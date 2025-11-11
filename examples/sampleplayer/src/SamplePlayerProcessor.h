@@ -40,8 +40,13 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         , m_envOutput{AbacDsp::RmsFollower(10000), AbacDsp::RmsFollower(10000)}
         , m_spectrogram{}
     {
+        m_parameters.addParameterListener("type", this);
+        m_parameters.addParameterListener("subset", this);
+        m_parameters.addParameterListener("solo", this);
         m_parameters.addParameterListener("vol", this);
-        m_parameters.addParameterListener("reverbLevel", this);
+        m_parameters.addParameterListener("reverbLevelWet", this);
+        m_parameters.addParameterListener("reverbDecay", this);
+        m_parameters.addParameterListener("reverbShimmer", this);
         m_parameters.addParameterListener("vol1", this);
         m_parameters.addParameterListener("vol2", this);
         m_parameters.addParameterListener("vol3", this);
@@ -52,6 +57,26 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         m_parameters.addParameterListener("vol8", this);
         m_parameters.addParameterListener("vol9", this);
         m_parameters.addParameterListener("vol10", this);
+        m_parameters.addParameterListener("revFeed1", this);
+        m_parameters.addParameterListener("revFeed2", this);
+        m_parameters.addParameterListener("revFeed3", this);
+        m_parameters.addParameterListener("revFeed4", this);
+        m_parameters.addParameterListener("revFeed5", this);
+        m_parameters.addParameterListener("revFeed6", this);
+        m_parameters.addParameterListener("revFeed7", this);
+        m_parameters.addParameterListener("revFeed8", this);
+        m_parameters.addParameterListener("revFeed9", this);
+        m_parameters.addParameterListener("revFeed10", this);
+        m_parameters.addParameterListener("pitch1", this);
+        m_parameters.addParameterListener("pitch2", this);
+        m_parameters.addParameterListener("pitch3", this);
+        m_parameters.addParameterListener("pitch4", this);
+        m_parameters.addParameterListener("pitch5", this);
+        m_parameters.addParameterListener("pitch6", this);
+        m_parameters.addParameterListener("pitch7", this);
+        m_parameters.addParameterListener("pitch8", this);
+        m_parameters.addParameterListener("pitch9", this);
+        m_parameters.addParameterListener("pitch10", this);
     }
     ~AudioPluginAudioProcessor() override = default;
 
@@ -216,14 +241,36 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     {
         std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("type", 1), "Type",
+            juce::StringArray{"DOLPHINS", "WIND", "RAINFOREST", "FOREST", "RAIN", "THUNDER", "TANPURA", "STREAM",
+                              "OCEAN", "BOWLS", "CAFE", "RPGFOREST"},
+            0));
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("subset", 1), "Subset",
+            juce::StringArray{"#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8", "#9", "#10"}, 0));
+        params.push_back(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("solo", 1), "Solo",
+            juce::StringArray{"None", "Track 1", "Track 2", "Track 3", "Track 4", "Track 5", "Track 6", "Track 7",
+                              "Track 8", "Track 9", "Track 10"},
+            0));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("vol", 1), "Vol", juce::NormalisableRange<float>(-100, 12, 0.1, 1, false), 0,
             juce::String("Vol"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("reverbLevel", 1), "Reverb", juce::NormalisableRange<float>(-120, 0, 1, 1, false), -120,
-            juce::String("Reverb"), juce::AudioProcessorParameter::genericParameter,
+            juce::ParameterID("reverbLevelWet", 1), "Reverb Wet", juce::NormalisableRange<float>(-120, 0, 1, 1, false),
+            -120, juce::String("Reverb Wet"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("reverbDecay", 1), "Rev Decay",
+            juce::NormalisableRange<float>(100, 100000, 1, 0.2, false), 1000, juce::String("Rev Decay"),
+            juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " ms"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("reverbShimmer", 1), "Rev Shimmer", juce::NormalisableRange<float>(0, 100, 1, 1, false),
+            0, juce::String("Rev Shimmer"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " %"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID("vol1", 1), "Vol 1", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
             juce::String("Vol 1"), juce::AudioProcessorParameter::genericParameter,
@@ -264,6 +311,86 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             juce::ParameterID("vol10", 1), "Vol 10", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
             juce::String("Vol 10"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed1", 1), "Rev 1", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 1"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed2", 1), "Rev 2", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 2"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed3", 1), "Rev 3", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 3"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed4", 1), "Rev 4", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 4"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed5", 1), "Rev 5", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 5"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed6", 1), "Rev 6", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 6"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed7", 1), "Rev 7", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 7"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed8", 1), "Rev 8", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 8"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed9", 1), "Rev 9", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 9"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("revFeed10", 1), "Rev 10", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::String("Rev 10"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " dB"; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch1", 1), "Pch 1", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 1"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch2", 1), "Pch 2", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 2"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch3", 1), "Pch 3", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 3"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch4", 1), "Pch 4", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 4"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch5", 1), "Pch 5", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 5"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch6", 1), "Pch 6", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 6"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch7", 1), "Pch 7", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 7"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch8", 1), "Pch 8", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 8"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch9", 1), "Pch 9", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 9"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
+        params.push_back(std::make_unique<juce::AudioParameterFloat>(
+            juce::ParameterID("pitch10", 1), "Pch 10", juce::NormalisableRange<float>(-48, 48, 1, 1, false), 0,
+            juce::String("Pch 10"), juce::AudioProcessorParameter::genericParameter,
+            [](float value, float) { return juce::String(value, 0) + " "; }));
 
         return {params.begin(), params.end()};
     }
@@ -276,9 +403,19 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             return;
         }
         static const std::map<juce::String, std::function<void(AudioPluginAudioProcessor&, float)>> parameterMap{
+            {"type", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setType(static_cast<size_t>(v)); }},
+            {"subset", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setSubset(static_cast<size_t>(v)); }},
+            {"solo", [](const AudioPluginAudioProcessor& p, const float v)
+             { p.pluginRunner->setSolo(static_cast<size_t>(v)); }},
             {"vol", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol(v); }},
-            {"reverbLevel",
-             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setReverbLevel(v); }},
+            {"reverbLevelWet",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setReverbLevelWet(v); }},
+            {"reverbDecay",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setReverbDecay(v); }},
+            {"reverbShimmer",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setReverbShimmer(v); }},
             {"vol1", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol1(v); }},
             {"vol2", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol2(v); }},
             {"vol3", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol3(v); }},
@@ -289,6 +426,26 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             {"vol8", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol8(v); }},
             {"vol9", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol9(v); }},
             {"vol10", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol10(v); }},
+            {"revFeed1", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed1(v); }},
+            {"revFeed2", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed2(v); }},
+            {"revFeed3", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed3(v); }},
+            {"revFeed4", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed4(v); }},
+            {"revFeed5", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed5(v); }},
+            {"revFeed6", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed6(v); }},
+            {"revFeed7", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed7(v); }},
+            {"revFeed8", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed8(v); }},
+            {"revFeed9", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed9(v); }},
+            {"revFeed10", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setRevFeed10(v); }},
+            {"pitch1", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch1(v); }},
+            {"pitch2", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch2(v); }},
+            {"pitch3", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch3(v); }},
+            {"pitch4", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch4(v); }},
+            {"pitch5", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch5(v); }},
+            {"pitch6", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch6(v); }},
+            {"pitch7", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch7(v); }},
+            {"pitch8", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch8(v); }},
+            {"pitch9", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch9(v); }},
+            {"pitch10", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setPitch10(v); }},
 
         };
         if (auto it = parameterMap.find(parameterID); it != parameterMap.end())
@@ -296,6 +453,7 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             it->second(*this, newValue);
         }
     }
+
     void computeCpuLoad(std::chrono::nanoseconds elapsed, size_t numSamples)
     {
         samplesProcessed += numSamples;
@@ -314,6 +472,7 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             samplesProcessed = 0;
         }
     }
+
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
