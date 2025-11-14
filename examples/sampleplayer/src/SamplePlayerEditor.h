@@ -61,11 +61,15 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
             box.flexWrap = juce::FlexBox::Wrap::noWrap;
             box.flexDirection = juce::FlexBox::Direction::column;
             box.justifyContent = juce::FlexBox::JustifyContent::spaceAround;
-            box.items.add(juce::FlexItem(typeDrop)
+            box.items.add(juce::FlexItem(subsetDrop)
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
-            box.items.add(juce::FlexItem(subsetDrop)
+            box.items.add(juce::FlexItem(syncSwitch)
+                              .withWidth(Constants::Text::labelWidth)
+                              .withHeight(Constants::Text::labelHeight)
+                              .withMargin(knobMarginSmall));
+            box.items.add(juce::FlexItem(typeDrop)
                               .withWidth(Constants::Text::labelWidth)
                               .withHeight(Constants::Text::labelHeight)
                               .withMargin(knobMarginSmall));
@@ -152,6 +156,10 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
 
     void initWidgets()
     {
+        addAndMakeVisible(syncSwitch);
+        syncSwitchAttachment =
+            std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(valueTreeState, "sync", syncSwitch);
+
         addAndMakeVisible(typeDrop);
         typeDrop.addItemList(valueTreeState.getParameter("type")->getAllValueStrings(), 1);
         typeDropAttachment =
@@ -176,6 +184,12 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         addAndMakeVisible(reverbShimmerDial);
         reverbShimmerDial.reset(valueTreeState, "reverbShimmer");
         reverbShimmerDial.setLabelText(juce::String::fromUTF8("Rev Shimmer"));
+        addAndMakeVisible(cpuGauge);
+        cpuGauge.setLabelText(juce::String::fromUTF8("CPU"));
+        addAndMakeVisible(levelGauge);
+        levelGauge.setLabelText(juce::String::fromUTF8("Level"));
+        addAndMakeVisible(spectrogramGauge);
+        spectrogramGauge.setLabelText(juce::String::fromUTF8("Spectrogram"));
         addAndMakeVisible(vol1Dial);
         vol1Dial.reset(valueTreeState, "vol1");
         vol1Dial.setLabelText(juce::String::fromUTF8("Vol 1"));
@@ -266,12 +280,6 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
         addAndMakeVisible(pitch10Dial);
         pitch10Dial.reset(valueTreeState, "pitch10");
         pitch10Dial.setLabelText(juce::String::fromUTF8("Pch 10"));
-        addAndMakeVisible(cpuGauge);
-        cpuGauge.setLabelText(juce::String::fromUTF8("CPU"));
-        addAndMakeVisible(levelGauge);
-        levelGauge.setLabelText(juce::String::fromUTF8("Level"));
-        addAndMakeVisible(spectrogramGauge);
-        spectrogramGauge.setLabelText(juce::String::fromUTF8("Spectrogram"));
     }
 
   private:
@@ -280,6 +288,8 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     GuiLookAndFeel m_laf;
     juce::Colour backgroundApp;
 
+    juce::ToggleButton syncSwitch{juce::String::fromUTF8("Sync")};
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> syncSwitchAttachment;
     juce::ComboBox typeDrop{};
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> typeDropAttachment;
     juce::ComboBox subsetDrop{};
@@ -290,6 +300,9 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     CustomRotaryDial reverbLevelWetDial{this};
     CustomRotaryDial reverbDecayDial{this};
     CustomRotaryDial reverbShimmerDial{this};
+    CpuGauge cpuGauge{};
+    Gauge levelGauge{};
+    SpectrogramDisplay spectrogramGauge{};
     CustomRotaryDial vol1Dial{this};
     CustomRotaryDial vol2Dial{this};
     CustomRotaryDial vol3Dial{this};
@@ -320,9 +333,6 @@ class AudioPluginAudioProcessorEditor : public juce::AudioProcessorEditor, juce:
     CustomRotaryDial pitch8Dial{this};
     CustomRotaryDial pitch9Dial{this};
     CustomRotaryDial pitch10Dial{this};
-    CpuGauge cpuGauge{};
-    Gauge levelGauge{};
-    SpectrogramDisplay spectrogramGauge{};
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessorEditor)
 };

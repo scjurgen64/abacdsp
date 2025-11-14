@@ -17,13 +17,13 @@ class GenericImpl final : public EffectBase
         : EffectBase(sampleRate)
     {
     }
+    void setSync(const bool value)
+    {
+        m_sync = value;
+    }
     void setType(const size_t value)
     {
         m_type = value;
-    }
-    void setSubset(const size_t value)
-    {
-        m_subset = value;
     }
     void setSolo(const size_t value)
     {
@@ -176,9 +176,9 @@ class GenericImpl final : public EffectBase
     }
 
   private:
-    bool m_type{};
-    bool m_subset{};
-    bool m_solo{};
+    bool m_sync{};
+    size_t m_type{};
+    size_t m_solo{};
     float m_vol{};
     float m_reverbLevelWet{};
     float m_reverbDecay{};

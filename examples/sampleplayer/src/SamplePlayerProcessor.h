@@ -13,6 +13,7 @@
 #include "UiElements.h"
 
 #include "impl/SamplePlayer.h"
+#include "impl/FileIo.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -39,7 +40,9 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         , m_envInput{AbacDsp::RmsFollower(10000), AbacDsp::RmsFollower(10000)}
         , m_envOutput{AbacDsp::RmsFollower(10000), AbacDsp::RmsFollower(10000)}
         , m_spectrogram{}
+        , m_patchIndex(1, 0)
     {
+        m_parameters.addParameterListener("sync", this);
         m_parameters.addParameterListener("type", this);
         m_parameters.addParameterListener("subset", this);
         m_parameters.addParameterListener("solo", this);
@@ -77,10 +80,12 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         m_parameters.addParameterListener("pitch8", this);
         m_parameters.addParameterListener("pitch9", this);
         m_parameters.addParameterListener("pitch10", this);
+
+        m_fileIo.initialize(m_patchIndex);
     }
     ~AudioPluginAudioProcessor() override = default;
 
-    void prepareToPlay(double sampleRate, int samplesPerBlock) override
+    void prepareToPlay(const double sampleRate, const int samplesPerBlock) override
     {
         pluginRunner = std::make_unique<SamplePlayer<NumSamplesPerBlock>>(static_cast<float>(sampleRate));
         m_sampleRate = static_cast<size_t>(sampleRate);
@@ -98,10 +103,27 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         }
 
         juce::ignoreUnused(samplesPerBlock);
+        m_fileIo.enable();
     }
 
     void releaseResources() override
     {
+        std::cout << "releaseResources: Called on shutdown" << std::endl;
+
+        if (m_fileIo.areParametersModified())
+        {
+            std::cout << "releaseResources: Parameters modified, prompting for save" << std::endl;
+
+            int result = juce::NativeMessageBox::showYesNoBox(
+                juce::MessageBoxIconType::QuestionIcon, "Save Parameters",
+                "Parameters have changed. Do you want to save before exiting?", nullptr, nullptr);
+            if (result == 1)
+            {
+                std::cout << "Saving data\n";
+                m_fileIo.forceSave();
+            }
+        }
+
         pluginRunner = nullptr;
     }
 
@@ -199,10 +221,6 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         {
             case 0:
                 return {"Program 0"};
-            case 1:
-                return {"Program 1"};
-            case 2:
-                return {"Program 2"};
             default:
                 return {"Program unknown"};
         }
@@ -241,14 +259,17 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     {
         std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+        params.push_back(std::make_unique<juce::AudioParameterBool>(juce::ParameterID("sync", 1), "Sync", 0));
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID("type", 1), "Type",
-            juce::StringArray{"DOLPHINS", "WIND", "RAINFOREST", "FOREST", "RAIN", "THUNDER", "TANPURA", "STREAM",
-                              "OCEAN", "BOWLS", "CAFE", "RPGFOREST"},
+            juce::StringArray{"PITCHONLY", "DOLPHINS", "WIND", "RAINFOREST", "FOREST", "RAIN", "THUNDER", "TANPURA",
+                              "STREAM", "OCEAN", "BOWLS", "CAFE", "RPGFOREST", "WHITEPULSE"},
             0));
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID("subset", 1), "Subset",
-            juce::StringArray{"#1", "#2", "#3", "#4", "#5", "#6", "#7", "#8", "#9", "#10"}, 0));
+            juce::StringArray{"#1",  "#2",  "#3",  "#4",  "#5",  "#6",  "#7",  "#8",  "#9",  "#10",
+                              "#11", "#12", "#13", "#14", "#15", "#16", "#17", "#18", "#19", "#20"},
+            0));
         params.push_back(std::make_unique<juce::AudioParameterChoice>(
             juce::ParameterID("solo", 1), "Solo",
             juce::StringArray{"None", "Track 1", "Track 2", "Track 3", "Track 4", "Track 5", "Track 6", "Track 7",
@@ -272,83 +293,83 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             0, juce::String("Rev Shimmer"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " %"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol1", 1), "Vol 1", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol1", 1), "Vol 1", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 1"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol2", 1), "Vol 2", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol2", 1), "Vol 2", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 2"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol3", 1), "Vol 3", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol3", 1), "Vol 3", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 3"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol4", 1), "Vol 4", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol4", 1), "Vol 4", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 4"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol5", 1), "Vol 5", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol5", 1), "Vol 5", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 5"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol6", 1), "Vol 6", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol6", 1), "Vol 6", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 6"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol7", 1), "Vol 7", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol7", 1), "Vol 7", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 7"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol8", 1), "Vol 8", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol8", 1), "Vol 8", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 8"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol9", 1), "Vol 9", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol9", 1), "Vol 9", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 9"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("vol10", 1), "Vol 10", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), -12,
+            juce::ParameterID("vol10", 1), "Vol 10", juce::NormalisableRange<float>(-100, 0, 0.1, 1, false), 0,
             juce::String("Vol 10"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 1) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed1", 1), "Rev 1", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed1", 1), "Rev 1", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 1"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed2", 1), "Rev 2", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed2", 1), "Rev 2", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 2"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed3", 1), "Rev 3", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed3", 1), "Rev 3", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 3"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed4", 1), "Rev 4", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed4", 1), "Rev 4", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 4"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed5", 1), "Rev 5", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed5", 1), "Rev 5", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 5"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed6", 1), "Rev 6", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed6", 1), "Rev 6", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 6"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed7", 1), "Rev 7", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed7", 1), "Rev 7", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 7"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed8", 1), "Rev 8", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed8", 1), "Rev 8", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 8"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed9", 1), "Rev 9", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed9", 1), "Rev 9", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 9"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID("revFeed10", 1), "Rev 10", juce::NormalisableRange<float>(-100, 0, 1, 1, false), -100,
+            juce::ParameterID("revFeed10", 1), "Rev 10", juce::NormalisableRange<float>(-100, 0, 1, 1, false), 0,
             juce::String("Rev 10"), juce::AudioProcessorParameter::genericParameter,
             [](float value, float) { return juce::String(value, 0) + " dB"; }));
         params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -402,11 +423,41 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         {
             return;
         }
+
+
+        if (parameterID == "subset")
+        {
+            if (parameterID == "subset")
+            {
+                m_patchIndex[0] = static_cast<int>(newValue);
+            }
+
+            if (m_fileIo.areParametersModified())
+            {
+                juce::NativeMessageBox::showAsync(
+                    juce::MessageBoxOptions()
+                        .withTitle("Save Parameters")
+                        .withMessage("Parameters have changed, do you want to save before loading new patch?")
+                        .withButton("Yes")
+                        .withButton("No")
+                        .withIconType(juce::MessageBoxIconType::QuestionIcon),
+                    [this, pi = m_patchIndex](int result) { handlePatchChangeAsync(pi, result == 0); });
+            }
+            else
+            {
+                loadPatchDirect(m_patchIndex);
+            }
+        }
+        else
+        {
+            m_fileIo.updateParameter(parameterID.toStdString(), newValue);
+        }
+
         static const std::map<juce::String, std::function<void(AudioPluginAudioProcessor&, float)>> parameterMap{
+            {"sync",
+             [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setSync(static_cast<bool>(v)); }},
             {"type", [](const AudioPluginAudioProcessor& p, const float v)
              { p.pluginRunner->setType(static_cast<size_t>(v)); }},
-            {"subset", [](const AudioPluginAudioProcessor& p, const float v)
-             { p.pluginRunner->setSubset(static_cast<size_t>(v)); }},
             {"solo", [](const AudioPluginAudioProcessor& p, const float v)
              { p.pluginRunner->setSolo(static_cast<size_t>(v)); }},
             {"vol", [](const AudioPluginAudioProcessor& p, const float v) { p.pluginRunner->setVol(v); }},
@@ -454,6 +505,249 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
         }
     }
 
+    // Helper to handle patch change after dialog response
+    void handlePatchChangeAsync(const std::vector<int>& newPatchIndex, bool shouldSave)
+    {
+        if (shouldSave)
+        {
+            m_fileIo.forceSave();
+        }
+
+        loadPatchDirect(newPatchIndex);
+    }
+
+    void loadPatchDirect(const std::vector<int>& patchIndex)
+    {
+        m_fileIo.loadPatchDirect(patchIndex);
+        m_fileIo.loadPatchDirect(patchIndex);
+        const auto& params = m_fileIo.getCurrentParameters();
+
+        // Apply loaded parameters to APVTS (triggers UI update)
+        if (auto* p = m_parameters.getParameter("sync"))
+        {
+            const auto& range = m_parameters.getParameterRange("sync");
+            float normalized = range.convertTo0to1(params.sync);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("type"))
+        {
+            const auto& range = m_parameters.getParameterRange("type");
+            float normalized = range.convertTo0to1(params.type);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("solo"))
+        {
+            const auto& range = m_parameters.getParameterRange("solo");
+            float normalized = range.convertTo0to1(params.solo);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol");
+            float normalized = range.convertTo0to1(params.vol);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("reverbLevelWet"))
+        {
+            const auto& range = m_parameters.getParameterRange("reverbLevelWet");
+            float normalized = range.convertTo0to1(params.reverbLevelWet);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("reverbDecay"))
+        {
+            const auto& range = m_parameters.getParameterRange("reverbDecay");
+            float normalized = range.convertTo0to1(params.reverbDecay);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("reverbShimmer"))
+        {
+            const auto& range = m_parameters.getParameterRange("reverbShimmer");
+            float normalized = range.convertTo0to1(params.reverbShimmer);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol1"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol1");
+            float normalized = range.convertTo0to1(params.vol1);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol2"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol2");
+            float normalized = range.convertTo0to1(params.vol2);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol3"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol3");
+            float normalized = range.convertTo0to1(params.vol3);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol4"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol4");
+            float normalized = range.convertTo0to1(params.vol4);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol5"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol5");
+            float normalized = range.convertTo0to1(params.vol5);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol6"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol6");
+            float normalized = range.convertTo0to1(params.vol6);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol7"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol7");
+            float normalized = range.convertTo0to1(params.vol7);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol8"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol8");
+            float normalized = range.convertTo0to1(params.vol8);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol9"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol9");
+            float normalized = range.convertTo0to1(params.vol9);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("vol10"))
+        {
+            const auto& range = m_parameters.getParameterRange("vol10");
+            float normalized = range.convertTo0to1(params.vol10);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed1"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed1");
+            float normalized = range.convertTo0to1(params.revFeed1);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed2"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed2");
+            float normalized = range.convertTo0to1(params.revFeed2);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed3"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed3");
+            float normalized = range.convertTo0to1(params.revFeed3);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed4"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed4");
+            float normalized = range.convertTo0to1(params.revFeed4);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed5"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed5");
+            float normalized = range.convertTo0to1(params.revFeed5);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed6"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed6");
+            float normalized = range.convertTo0to1(params.revFeed6);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed7"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed7");
+            float normalized = range.convertTo0to1(params.revFeed7);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed8"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed8");
+            float normalized = range.convertTo0to1(params.revFeed8);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed9"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed9");
+            float normalized = range.convertTo0to1(params.revFeed9);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("revFeed10"))
+        {
+            const auto& range = m_parameters.getParameterRange("revFeed10");
+            float normalized = range.convertTo0to1(params.revFeed10);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch1"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch1");
+            float normalized = range.convertTo0to1(params.pitch1);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch2"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch2");
+            float normalized = range.convertTo0to1(params.pitch2);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch3"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch3");
+            float normalized = range.convertTo0to1(params.pitch3);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch4"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch4");
+            float normalized = range.convertTo0to1(params.pitch4);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch5"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch5");
+            float normalized = range.convertTo0to1(params.pitch5);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch6"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch6");
+            float normalized = range.convertTo0to1(params.pitch6);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch7"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch7");
+            float normalized = range.convertTo0to1(params.pitch7);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch8"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch8");
+            float normalized = range.convertTo0to1(params.pitch8);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch9"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch9");
+            float normalized = range.convertTo0to1(params.pitch9);
+            p->setValueNotifyingHost(normalized);
+        }
+        if (auto* p = m_parameters.getParameter("pitch10"))
+        {
+            const auto& range = m_parameters.getParameterRange("pitch10");
+            float normalized = range.convertTo0to1(params.pitch10);
+            p->setValueNotifyingHost(normalized);
+        }
+    }
+
+
     void computeCpuLoad(std::chrono::nanoseconds elapsed, size_t numSamples)
     {
         samplesProcessed += numSamples;
@@ -472,7 +766,6 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
             samplesProcessed = 0;
         }
     }
-
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wsign-conversion"
@@ -559,5 +852,7 @@ class AudioPluginAudioProcessor : public juce::AudioProcessor, public juce::Audi
     std::array<AbacDsp::RmsFollower, 2> m_envInput;
     std::array<AbacDsp::RmsFollower, 2> m_envOutput;
     AbacDsp::SimpleSpectrogram m_spectrogram;
+    std::vector<int> m_patchIndex;
+    FileIo m_fileIo;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AudioPluginAudioProcessor)
 };

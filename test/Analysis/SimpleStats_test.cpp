@@ -185,14 +185,14 @@ TEST_F(SimpleStatsTest, StreamOutput)
     const auto output = oss.str();
 
     EXPECT_NE(output.find("Test Data Statistics:"), std::string::npos);
-    EXPECT_NE(output.find("Count: 7"), std::string::npos);
-    EXPECT_NE(output.find("Mean:"), std::string::npos);
-    EXPECT_NE(output.find("Std Dev:"), std::string::npos);
-    EXPECT_NE(output.find("Min: -1.00"), std::string::npos);
-    EXPECT_NE(output.find("Max: 2.00"), std::string::npos);
-    EXPECT_NE(output.find("Range: 3.00"), std::string::npos);
-    EXPECT_NE(output.find("Median: 0.00"), std::string::npos);
-    EXPECT_NE(output.find("IQR: 1.00"), std::string::npos);
+    EXPECT_NE(output.find("Count:   7"), std::string::npos);
+    EXPECT_NE(output.find("Mean:    0.428571"), std::string::npos);
+    EXPECT_NE(output.find("Std Dev: 0.9759"), std::string::npos);
+    EXPECT_NE(output.find("Min:     -1.00"), std::string::npos);
+    EXPECT_NE(output.find("Max:     2.00"), std::string::npos);
+    EXPECT_NE(output.find("Range:   3.00"), std::string::npos);
+    EXPECT_NE(output.find("Median:  0.00"), std::string::npos);
+    EXPECT_NE(output.find("IQR:     1.00"), std::string::npos);
 }
 
 TEST_F(SimpleStatsTest, DifferentDataTypes)

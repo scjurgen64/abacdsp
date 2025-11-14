@@ -24,8 +24,9 @@
 
 static std::string baseFolder{"/Users/scjurgen/projects/"};
 
-static std::vector<std::string> sets{"PITCHONLY", "DOLPHINS", "WIND",  "RAINFOREST", "FOREST", "RAIN",     "THUNDER",
-                                     "TANPURA",   "STREAM",   "OCEAN", "BOWLS",      "CAFE",   "RPGFOREST"};
+static std::vector<std::string> sets{"PITCHONLY", "DOLPHINS", "WIND",      "RAINFOREST", "FOREST",
+                                     "RAIN",      "THUNDER",  "TANPURA",   "STREAM",     "OCEAN",
+                                     "BOWLS",     "CAFE",     "RPGFOREST", "WHITEBURSTS"};
 
 template <size_t BlockSize>
 class SamplePlayer final : public EffectBase
@@ -53,7 +54,7 @@ class SamplePlayer final : public EffectBase
         m_rev.setDry(0.f);
         m_rev.setWet(1.f);
         m_rev.setDecay(2000.f);
-        loadSets("RAIN");
+        loadSets(sets[0]);
     }
 
     ~SamplePlayer() override
@@ -231,6 +232,11 @@ class SamplePlayer final : public EffectBase
         loadSubSet(getSetName());
     }
 
+    void setSync(const bool syncNext)
+    {
+        m_syncNext = syncNext;
+    }
+
     void setVol(const float valueDb)
     {
         m_setting.vol = std::pow(10.f, valueDb / 20.f);
@@ -404,16 +410,35 @@ class SamplePlayer final : public EffectBase
     void checkDone()
     {
         auto samples = m_samples.load();
-        for (size_t i = 0; i < m_smplPlayer.size(); ++i)
+        if (m_syncNext)
         {
-            if (m_smplPlayer[i].isDone())
+            if (m_smplPlayer[0].isDone())
             {
-                auto idx = 10 * (rand() % 2); // NOLINT
-                if (samples[i + idx] != nullptr)
+                for (size_t i = 0; i < m_smplPlayer.size(); ++i)
                 {
-                    m_smplPlayer[i].runStereo(samples[i + idx]);
-                    m_smplPlayer[i].setLoop(false);
-                    m_smplPlayer[i].restart();
+                    auto idx = 10 * (rand() % 2); // NOLINT
+                    if (samples[i + idx] != nullptr)
+                    {
+                        m_smplPlayer[i].runStereo(samples[i + idx]);
+                        m_smplPlayer[i].setLoop(false);
+                        m_smplPlayer[i].restart();
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (size_t i = 0; i < m_smplPlayer.size(); ++i)
+            {
+                if (m_smplPlayer[i].isDone())
+                {
+                    auto idx = 10 * (rand() % 2); // NOLINT
+                    if (samples[i + idx] != nullptr)
+                    {
+                        m_smplPlayer[i].runStereo(samples[i + idx]);
+                        m_smplPlayer[i].setLoop(false);
+                        m_smplPlayer[i].restart();
+                    }
                 }
             }
         }
@@ -493,4 +518,5 @@ class SamplePlayer final : public EffectBase
     AmbientReverb<BlockSize> m_rev;
     std::thread m_loadThread;
     std::atomic<bool> m_shouldTerminate{false};
+    bool m_syncNext{false};
 };
