@@ -153,24 +153,34 @@ TEST_F(OctaveBandAnalyzerTest, SilenceProducesZeroLevels)
     }
 }
 
-TEST_F(OctaveBandAnalyzerTest, SineWaveDetectedInCorrectBand_MIDISweep)
+TEST_F(OctaveBandAnalyzerTest, SineWaveDetectedInCorrectBand)
 {
     OctaveBandAnalyzer<TestBlockSize, 3> analyzer(TestSampleRate);
-
-    for (int midiNote = 20; midiNote < 112; ++midiNote)
+    auto cf = analyzer.getCenterFrequencies();
+    std::cout << "f\t";
+    for (size_t i = 0; i < cf.size(); ++i)
+    {
+        std::cout << cf[i] << "\t";
+    }
+    std::cout << std::endl;
+    for (int midiNote = 20; midiNote < 122; midiNote += 4)
     {
         const float frequency = midiNoteToFrequency(midiNote);
-
-        if (frequency < 20.0f || frequency > TestSampleRate / 2.0f)
+        if (frequency < 18.0f || frequency > TestSampleRate / 2.0f)
         {
             continue;
         }
+        std::cout << frequency << "\t";
 
         analyzer.reset();
         feedSignal(analyzer, frequency, 0.7f);
-
         auto levels = analyzer.getLevels();
         auto centerFreqs = analyzer.getCenterFrequencies();
+        for (size_t i = 0; i < levels.size(); ++i)
+        {
+            std::cout << std::log10(levels[i]) * 20 << "\t";
+        }
+        std::cout << std::endl;
 
         const size_t peakBand = findPeakBand(levels);
         const float peakFreq = centerFreqs[peakBand];

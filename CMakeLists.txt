@@ -30,6 +30,8 @@ if (NOT BUILD_ONLY_TESTS)
 
     # EXAMPLES - only when building full project
     add_subdirectory(examples/delay)
+    add_subdirectory(examples/guisandbox)
+    add_subdirectory(examples/juliasynth)
     add_subdirectory(examples/minireverb)
     add_subdirectory(examples/sampleplayer)
 else ()
