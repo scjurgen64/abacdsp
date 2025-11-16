@@ -9,16 +9,17 @@
 
 namespace AbacDsp
 {
-class StretchSamplePlayer
+
+class StretchedSampleProducer
 {
   public:
-    explicit StretchSamplePlayer(const auto sampleRate)
+    explicit StretchedSampleProducer(const auto sampleRate)
         : m_sampleRate(sampleRate)
     {
         setupFFT();
     }
 
-    ~StretchSamplePlayer()
+    ~StretchedSampleProducer()
     {
         pffft_aligned_free(m_fftWork);
         pffft_aligned_free(m_fftBuffer);
@@ -29,34 +30,9 @@ class StretchSamplePlayer
         }
     }
 
-    void runStereo(const std::shared_ptr<std::vector<float>>& data)
+    void setRawStereoSample(const std::shared_ptr<std::vector<float>>& data)
     {
         m_data = data;
-    }
-
-    void restart()
-    {
-        m_isDone = false;
-        m_intPlayPos = 0;
-        m_fracPlayPos = 0.0f;
-        m_pitchReadPos = 0.0f;
-        resetPhases();
-        std::fill(m_intermediateBufferL.begin(), m_intermediateBufferL.end(), 0.0f);
-        std::fill(m_intermediateBufferR.begin(), m_intermediateBufferR.end(), 0.0f);
-        m_intermediateWritePos = 0;
-        m_outputPos = 0;
-        m_needsInitialFrame = true;
-    }
-
-    void setLoop(const auto loop)
-    {
-        m_loop = loop;
-    }
-
-    void setPlaybackRate(const auto rate)
-    {
-        m_pitchShift = rate;
-        updateZeroBinThreshold();
     }
 
     void setFeedRate(const float ratio)
@@ -69,43 +45,43 @@ class StretchSamplePlayer
         m_isDone = false;
         m_intPlayPos = samplePos;
         m_fracPlayPos = 0.0f;
-        m_pitchReadPos = 0.0f;
         resetPhases();
-        m_intermediateWritePos = 0;
-        m_outputPos = 0;
-        m_needsInitialFrame = true;
+        std::fill(m_outputRingL.begin(), m_outputRingL.end(), 0.0f);
+        std::fill(m_outputRingR.begin(), m_outputRingR.end(), 0.0f);
+        m_ringWritePos = 0;
+        m_ringReadPos = 0;
     }
 
-    void processBlock(float* targetAddLeft, float* targetAddRight, const size_t numSamples)
+    bool produceSamples(float* outLeft, float* outRight, const size_t numSamples)
     {
         if (m_isDone || !m_data)
         {
-            return;
+            return false;
         }
 
         const size_t dataSize = m_data->size() / 2;
         const float* samples = m_data->data();
 
-        if (m_needsInitialFrame)
-        {
-            processFrame(samples, dataSize, true);
-            m_needsInitialFrame = false;
-        }
-
-        // Fill intermediate buffer as needed
-        while (getIntermediateAvailable() < numSamples && !m_isDone)
-        {
-            processFrame(samples, dataSize, false);
-        }
-        // Read out with Hermite interpolation
         for (size_t i = 0; i < numSamples; ++i)
         {
-            targetAddLeft[i] += hermiteInterp(m_intermediateBufferL, m_pitchReadPos);
-            targetAddRight[i] += hermiteInterp(m_intermediateBufferR, m_pitchReadPos);
-            m_pitchReadPos += m_pitchShift;
-            if (m_pitchReadPos >= m_intermediateBufferL.size())
-                m_pitchReadPos -= m_intermediateBufferL.size();
+            if (getAvailableSamples() == 0)
+            {
+                if (!processFrame(samples, dataSize))
+                {
+                    return false;
+                }
+            }
+
+            outLeft[i] = m_outputRingL[m_ringReadPos];
+            outRight[i] = m_outputRingR[m_ringReadPos];
+
+            m_outputRingL[m_ringReadPos] = 0.0f;
+            m_outputRingR[m_ringReadPos] = 0.0f;
+
+            m_ringReadPos = (m_ringReadPos + 1) % m_outputRingL.size();
         }
+
+        return true;
     }
 
     [[nodiscard]] bool isDone() const
@@ -113,10 +89,20 @@ class StretchSamplePlayer
         return m_isDone;
     }
 
+    [[nodiscard]] size_t getRemainingSourceSamples() const
+    {
+        if (!m_data || m_isDone)
+        {
+            return 0;
+        }
+        const size_t dataSize = m_data->size() / 2;
+        return (m_intPlayPos < dataSize) ? (dataSize - m_intPlayPos) : 0;
+    }
+
   private:
     static constexpr size_t WindowSize = 1024;
     static constexpr float twoPi = 2.0f * std::numbers::pi_v<float>;
-    static constexpr size_t IntermediateBufferSize = WindowSize * 2;
+    static constexpr size_t RingBufferSize = WindowSize * 2;
 
     void setupFFT()
     {
@@ -125,7 +111,9 @@ class StretchSamplePlayer
         m_numBins = WindowSize / 2 + 1;
 
         if (m_fftSetup)
+        {
             pffft_destroy_setup(m_fftSetup);
+        }
 
         m_fftSetup = pffft_new_setup(static_cast<int>(m_fftSize), PFFFT_REAL);
 
@@ -141,27 +129,21 @@ class StretchSamplePlayer
         m_prevPhaseR.resize(m_numBins, 0.0f);
         m_synthPhaseL.resize(m_numBins, 0.0f);
         m_synthPhaseR.resize(m_numBins, 0.0f);
+        m_outputRingL.resize(RingBufferSize, 0.0f);
+        m_outputRingR.resize(RingBufferSize, 0.0f);
         m_inputBufferL.resize(m_fftSize, 0.0f);
         m_inputBufferR.resize(m_fftSize, 0.0f);
-        m_intermediateBufferL.resize(IntermediateBufferSize, 0.0f);
-        m_intermediateBufferR.resize(IntermediateBufferSize, 0.0f);
+
         generateHannWindow();
-        updateZeroBinThreshold();
     }
 
     void generateHannWindow()
     {
         m_window.resize(m_fftSize);
         for (size_t i = 0; i < m_fftSize; ++i)
+        {
             m_window[i] = 0.5f * (1.0f - std::cos(twoPi * static_cast<float>(i) / static_cast<float>(m_fftSize - 1)));
-    }
-
-    void updateZeroBinThreshold()
-    {
-        const auto newNyquist = (m_sampleRate * 0.5f) / m_pitchShift;
-        const auto binFreqSpacing = m_sampleRate / static_cast<float>(m_fftSize);
-        m_zeroBinThreshold = static_cast<size_t>(newNyquist / binFreqSpacing);
-        m_zeroBinThreshold = std::min(m_zeroBinThreshold, m_numBins - 1);
+        }
     }
 
     void resetPhases()
@@ -173,29 +155,29 @@ class StretchSamplePlayer
         m_phaseReset = true;
     }
 
-    size_t getIntermediateAvailable() const
+    size_t getAvailableSamples() const
     {
-        if (m_intermediateWritePos >= m_pitchReadPos)
-            return m_intermediateWritePos - static_cast<size_t>(m_pitchReadPos);
-        return m_intermediateBufferL.size() - static_cast<size_t>(m_pitchReadPos) + m_intermediateWritePos;
+        if (m_ringWritePos >= m_ringReadPos)
+        {
+            return m_ringWritePos - m_ringReadPos;
+        }
+        return m_outputRingL.size() - m_ringReadPos + m_ringWritePos;
     }
 
-    void processFrame(const float* samples, const size_t dataSize, const bool isTransient)
+    bool processFrame(const float* samples, const size_t dataSize)
     {
         if (!fillInputBuffer(samples, dataSize))
         {
-            return;
+            return false;
         }
 
-        processChannel(m_inputBufferL.data(), m_intermediateBufferL.data() + m_intermediateWritePos, m_prevPhaseL,
-                       m_synthPhaseL, isTransient);
-        processChannel(m_inputBufferR.data(), m_intermediateBufferR.data() + m_intermediateWritePos, m_prevPhaseR,
-                       m_synthPhaseR, isTransient);
+        processChannel(m_inputBufferL.data(), m_outputRingL.data(), m_prevPhaseL, m_synthPhaseL);
+        processChannel(m_inputBufferR.data(), m_outputRingR.data(), m_prevPhaseR, m_synthPhaseR);
 
         m_phaseReset = false;
-        m_intermediateWritePos += m_hopSize;
-        if (m_intermediateWritePos >= m_intermediateBufferL.size())
-            m_intermediateWritePos = 0;
+        m_ringWritePos = (m_ringWritePos + m_hopSize) % m_outputRingL.size();
+
+        return true;
     }
 
     bool fillInputBuffer(const float* samples, const size_t dataSize)
@@ -203,81 +185,61 @@ class StretchSamplePlayer
         for (size_t i = 0; i < m_fftSize; ++i)
         {
             const size_t readPos = m_intPlayPos + i;
+
             if (readPos >= dataSize)
             {
-                if (m_loop)
-                {
-                    m_inputBufferL[i] = samples[((readPos % dataSize) * 2)];
-                    m_inputBufferR[i] = samples[((readPos % dataSize) * 2) + 1];
-                }
-                else
-                {
-                    m_isDone = true;
-                    return false;
-                }
+                m_isDone = true;
+                return false;
             }
-            else
-            {
-                m_inputBufferL[i] = samples[readPos * 2];
-                m_inputBufferR[i] = samples[readPos * 2 + 1];
-            }
+
+            m_inputBufferL[i] = samples[readPos * 2];
+            m_inputBufferR[i] = samples[readPos * 2 + 1];
         }
+
         const auto analysisHop = static_cast<float>(m_hopSize) * m_feedRatio;
         m_fracPlayPos += analysisHop;
         const auto intAdvance = static_cast<size_t>(m_fracPlayPos);
         m_fracPlayPos -= static_cast<float>(intAdvance);
         m_intPlayPos += intAdvance;
+
         return true;
     }
 
-    void processChannel(const float* input, float* output, std::vector<float>& prevPhase,
-                        std::vector<float>& synthPhase, const bool isTransient)
+    void processChannel(const float* input, float* outputRing, std::vector<float>& prevPhase,
+                        std::vector<float>& synthPhase)
     {
         for (size_t i = 0; i < m_fftSize; ++i)
-            m_fftBuffer[i] = isTransient ? input[i] : input[i] * m_window[i];
+        {
+            m_fftBuffer[i] = input[i] * m_window[i];
+        }
+
         pffft_transform_ordered(m_fftSetup, m_fftBuffer, m_spectrum, m_fftWork, PFFFT_FORWARD);
+
         if (m_phaseReset)
+        {
             initializePhasesFromSpectrum(prevPhase, synthPhase);
+        }
         else
+        {
             phaseCorrection(prevPhase, synthPhase);
-        if (m_pitchShift > 1.0f)
-        {
-            for (size_t k = m_zeroBinThreshold + 1; k < m_numBins; ++k)
-            {
-                const size_t idx = (k < m_numBins - 1) ? k * 2 : 1;
-                m_spectrum[idx] = 0.0f;
-                if (k < m_numBins - 1)
-                    m_spectrum[idx + 1] = 0.0f;
-            }
         }
+
         pffft_transform_ordered(m_fftSetup, m_spectrum, m_fftBuffer, m_fftWork, PFFFT_BACKWARD);
-        if (isTransient)
-            synthesisTransient(output);
-        else
-            synthesisRegular(output);
+
+        synthesize(outputRing);
     }
 
-    void synthesisTransient(float* output)
+    void synthesize(float* outputRing)
     {
-        const auto normFactor = 1.0f / static_cast<float>(m_fftSize);
+        constexpr float colaFactor = 1.5f;
+        const float normFactor = 1.0f / (static_cast<float>(m_fftSize) * colaFactor);
+        size_t writePos = m_ringWritePos;
+
         for (size_t i = 0; i < m_fftSize; ++i)
         {
-            float fadeWindow = 1.0f;
-            if (i >= m_hopSize)
-            {
-                const size_t fadeIdx = i - m_hopSize;
-                const auto nextFrameHann = 0.5f * (1.0f - std::cos(twoPi * fadeIdx / (m_fftSize - 1)));
-                fadeWindow = 1.0f - nextFrameHann;
-            }
-            output[i] = m_fftBuffer[i] * fadeWindow * normFactor;
+            outputRing[writePos] += m_fftBuffer[i] * m_window[i] * normFactor;
+            writePos = (writePos + 1) % m_outputRingL.size();
         }
-    }
-
-    void synthesisRegular(float* output)
-    {
-        constexpr float normFactor = 1.0f / 4.0f;
-        for (size_t i = 0; i < m_fftSize; ++i)
-            output[i] = m_fftBuffer[i] * m_window[i] * normFactor / static_cast<float>(m_fftSize);
     }
 
     void initializePhasesFromSpectrum(std::vector<float>& prevPhase, std::vector<float>& synthPhase)
@@ -289,18 +251,24 @@ class StretchSamplePlayer
             const auto imag = (k < m_numBins - 1) ? m_spectrum[idx + 1] : 0.0f;
             const auto magnitude = std::sqrt(real * real + imag * imag);
             const auto phase = std::atan2(imag, real);
+
             prevPhase[k] = phase;
             synthPhase[k] = phase;
+
             m_spectrum[idx] = magnitude * std::cos(phase);
             if (k < m_numBins - 1)
+            {
                 m_spectrum[idx + 1] = magnitude * std::sin(phase);
+            }
         }
     }
 
     void phaseCorrection(std::vector<float>& prevPhase, std::vector<float>& synthPhase)
     {
         const auto freqPerBin = m_sampleRate / static_cast<float>(m_fftSize);
-        const auto expectedPhaseAdvance = twoPi * static_cast<float>(m_hopSize) / static_cast<float>(m_fftSize);
+        const auto analysisHop = static_cast<float>(m_hopSize) * m_feedRatio;
+        const auto expectedPhaseAdvance = twoPi * analysisHop / static_cast<float>(m_fftSize);
+
         for (size_t k = 0; k < m_numBins; ++k)
         {
             const size_t idx = (k < m_numBins - 1) ? k * 2 : 1;
@@ -308,66 +276,57 @@ class StretchSamplePlayer
             const auto imag = (k < m_numBins - 1) ? m_spectrum[idx + 1] : 0.0f;
             const auto magnitude = std::sqrt(real * real + imag * imag);
             const auto phase = std::atan2(imag, real);
+
             auto phaseDiff = phase - prevPhase[k];
             prevPhase[k] = phase;
+
             phaseDiff -= static_cast<float>(k) * expectedPhaseAdvance;
+
             const auto qpd = static_cast<int>(phaseDiff / twoPi);
             phaseDiff -= twoPi * static_cast<float>(
                                      qpd + static_cast<int>(std::copysign(1.0f, static_cast<float>(qpd)) * (qpd & 1)));
+
             const auto binFreq = static_cast<float>(k) * freqPerBin;
-            const auto instantFreq = binFreq + phaseDiff * m_sampleRate / (twoPi * static_cast<float>(m_hopSize));
+            const auto instantFreq = binFreq + phaseDiff * m_sampleRate / (twoPi * analysisHop);
+
             synthPhase[k] += instantFreq * twoPi * static_cast<float>(m_hopSize) / m_sampleRate;
+
             m_spectrum[idx] = magnitude * std::cos(synthPhase[k]);
             if (k < m_numBins - 1)
+            {
                 m_spectrum[idx + 1] = magnitude * std::sin(synthPhase[k]);
+            }
         }
     }
-    // Hermite interpolation (4-point)
-    static float hermiteInterp(const std::vector<float>& buffer, float pos)
-    {
-        const size_t size = buffer.size();
-        size_t p1 = static_cast<size_t>(std::floor(pos)) % size;
-        size_t p0 = (p1 + size - 1) % size;
-        size_t p2 = (p1 + 1) % size;
-        size_t p3 = (p1 + 2) % size;
-        float frac = pos - static_cast<float>(p1);
-        float xm1 = buffer[p0];
-        float x0 = buffer[p1];
-        float x1 = buffer[p2];
-        float x2 = buffer[p3];
-        return x0 +
-               0.5f * frac *
-                   (x1 - xm1 + frac * (2.0f * xm1 - 5.0f * x0 + 4.0f * x1 - x2 + frac * (3.0f * (x0 - x1) + x2 - xm1)));
-    }
+
     std::shared_ptr<std::vector<float>> m_data{};
     size_t m_intPlayPos{0};
     float m_fracPlayPos{0.0f};
     float m_feedRatio{1.0f};
-    float m_pitchShift{1.0f};
-    bool m_loop{false};
     bool m_isDone{true};
     bool m_phaseReset{true};
-    bool m_needsInitialFrame{true};
+
     float m_sampleRate;
     PFFFT_Setup* m_fftSetup{nullptr};
     float* m_fftWork{nullptr};
     float* m_fftBuffer{nullptr};
     float* m_spectrum{nullptr};
+
     size_t m_fftSize{WindowSize};
     size_t m_hopSize{WindowSize / 4};
     size_t m_numBins{WindowSize / 2 + 1};
-    size_t m_zeroBinThreshold{WindowSize / 2 + 1};
-    size_t m_outputPos{0};
-    size_t m_intermediateWritePos{0};
-    float m_pitchReadPos{0.0f};
+    size_t m_ringWritePos{0};
+    size_t m_ringReadPos{0};
+
     std::vector<float> m_window;
     std::vector<float> m_prevPhaseL;
     std::vector<float> m_prevPhaseR;
     std::vector<float> m_synthPhaseL;
     std::vector<float> m_synthPhaseR;
+    std::vector<float> m_outputRingL;
+    std::vector<float> m_outputRingR;
     std::vector<float> m_inputBufferL;
     std::vector<float> m_inputBufferR;
-    std::vector<float> m_intermediateBufferL;
-    std::vector<float> m_intermediateBufferR;
 };
+
 }

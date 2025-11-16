@@ -34,7 +34,6 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/xiph/ogg.git
         GIT_TAG v1.3.6
         GIT_SHALLOW TRUE
-        #PATCH_COMMAND sed -i.bak "s/cmake_minimum_required(VERSION 2.8.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
 )
 
 FetchContent_Declare(
@@ -44,6 +43,7 @@ FetchContent_Declare(
         GIT_SHALLOW TRUE
         PATCH_COMMAND sed -i.bak "s/cmake_minimum_required(VERSION 2.8.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
 )
+
 FetchContent_Declare(
         nlohmann_json
         GIT_REPOSITORY https://github.com/nlohmann/json.git
@@ -52,6 +52,9 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(ogg vorbis nlohmann_json)
+
+# Add pffft from submodule
+set(PFFFT_DIR "${PROJECT_SOURCE_DIR}/../../3rdparty/pffft")
 
 juce_add_plugin("${PROJECT_NAME}"
         VERSION "0.0.0"
@@ -86,7 +89,10 @@ list(FILTER SourceFiles EXCLUDE REGEX ".*GenericImpl\\.h$")
 # Include directories for AbacDsp library (from main project)
 target_include_directories("${PROJECT_NAME}" PUBLIC ../../src/includes)
 
-target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles})
+# Add pffft include directory
+target_include_directories("${PROJECT_NAME}" PRIVATE ${PFFFT_DIR})
+
+target_sources("${PROJECT_NAME}" PRIVATE ${SourceFiles} ${PFFFT_DIR}/pffft.c)
 set_target_properties("${PROJECT_NAME}" PROPERTIES FOLDER "")
 
 # Fix source_group to use correct root path for this project

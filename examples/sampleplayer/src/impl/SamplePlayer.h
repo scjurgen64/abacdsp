@@ -7,6 +7,7 @@
 #include "Helpers/ConstructArray.h"
 #include "SamplerateConverter/ConvertSampleBuffer.h"
 #include "Sampler/SamplePlayerBasic.h"
+#include "Sampler/StretchSamplePlayer.h"
 #include "AmbientReverb.h"
 
 #include <nlohmann/json.hpp>

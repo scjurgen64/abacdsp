@@ -71,28 +71,28 @@ class SamplePlayerBasic
 
             // 4-point Hermite interpolation (stereo interleaved)
             const size_t pPos = m_intPlayPos * 2;
-            const float ym1_L = samples[pPos];
-            const float y0_L = samples[pPos + 2];
-            const float y1_L = samples[pPos + 4];
-            const float y2_L = samples[pPos + 6];
+            const auto ym1_L = samples[pPos];
+            const auto y0_L = samples[pPos + 2];
+            const auto y1_L = samples[pPos + 4];
+            const auto y2_L = samples[pPos + 6];
 
-            const float ym1_R = samples[pPos + 1];
-            const float y0_R = samples[pPos + 3];
-            const float y1_R = samples[pPos + 5];
-            const float y2_R = samples[pPos + 7];
+            const auto ym1_R = samples[pPos + 1];
+            const auto y0_R = samples[pPos + 3];
+            const auto y1_R = samples[pPos + 5];
+            const auto y2_R = samples[pPos + 7];
 
-            const float c0_L = y0_L;
-            const float c1_L = 0.5f * (y1_L - ym1_L);
-            const float c2_L = ym1_L - 2.5f * y0_L + 2.0f * y1_L - 0.5f * y2_L;
-            const float c3_L = 0.5f * (y2_L - ym1_L) + 1.5f * (y0_L - y1_L);
+            const auto c0_L = y0_L;
+            const auto c1_L = 0.5f * (y1_L - ym1_L);
+            const auto c2_L = ym1_L - 2.5f * y0_L + 2.0f * y1_L - 0.5f * y2_L;
+            const auto c3_L = 0.5f * (y2_L - ym1_L) + 1.5f * (y0_L - y1_L);
 
-            const float c0_R = y0_R;
-            const float c1_R = 0.5f * (y1_R - ym1_R);
-            const float c2_R = ym1_R - 2.5f * y0_R + 2.0f * y1_R - 0.5f * y2_R;
-            const float c3_R = 0.5f * (y2_R - ym1_R) + 1.5f * (y0_R - y1_R);
+            const auto c0_R = y0_R;
+            const auto c1_R = 0.5f * (y1_R - ym1_R);
+            const auto c2_R = ym1_R - 2.5f * y0_R + 2.0f * y1_R - 0.5f * y2_R;
+            const auto c3_R = 0.5f * (y2_R - ym1_R) + 1.5f * (y0_R - y1_R);
 
-            float outL = ((c3_L * m_frac + c2_L) * m_frac + c1_L) * m_frac + c0_L;
-            float outR = ((c3_R * m_frac + c2_R) * m_frac + c1_R) * m_frac + c0_R;
+            const auto outL = ((c3_L * m_frac + c2_L) * m_frac + c1_L) * m_frac + c0_L;
+            const auto outR = ((c3_R * m_frac + c2_R) * m_frac + c1_R) * m_frac + c0_R;
 
             targetAddLeft[i] += outL;
             targetAddRight[i] += outR;
@@ -122,7 +122,7 @@ class SamplePlayerBasic
     float m_advanceFactor{1.0f};
     bool m_loop{false};
     bool m_isDone{true};
-    const float m_sampleRate;
+    float m_sampleRate;
     ChebyshevBiquad m_lowPassFilter;
     bool m_needsFiltering{false};
 };

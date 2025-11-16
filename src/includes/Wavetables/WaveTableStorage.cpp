@@ -31,7 +31,7 @@ WaveTableSet WaveTableStore::addSet(std::vector<float>& freqWaveRe, std::vector<
     const auto ai = freqWaveIm;
     float scale = 0.0f;
 
-    WaveTableSet newset;
+    WaveTableSet newset{};
 
     unsigned int maxHarmonic = WaveTableSize / 2;
     while (maxHarmonic > 1)
@@ -45,7 +45,7 @@ WaveTableSet WaveTableStore::addSet(std::vector<float>& freqWaveRe, std::vector<
         // Prepare harmonic data by setting everything over the topFreq to 0
         std::vector harmonicRe(WaveTableSize, 0.0f);
         std::vector harmonicIm(WaveTableSize, 0.0f);
-        for (int idx = 1; idx <= maxHarmonic; idx++)
+        for (unsigned int idx = 1; idx <= maxHarmonic; idx++)
         {
             harmonicRe[idx] = ar[idx];
             harmonicIm[idx] = ai[idx];
@@ -54,7 +54,7 @@ WaveTableSet WaveTableStore::addSet(std::vector<float>& freqWaveRe, std::vector<
         }
         scale = makeWaveTable(harmonicRe, harmonicIm, scale, topFreq, newset.tables);
         // Prepare for next table
-        const auto newHarmonic = static_cast<int>(std::floor(minTop / topFreq + 0.5f));
+        const auto newHarmonic = static_cast<unsigned int>(std::floor(minTop / topFreq + 0.5f));
         if (maxHarmonic == newHarmonic)
         {
             break;
